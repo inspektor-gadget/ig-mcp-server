@@ -3,7 +3,7 @@ module github.com/inspektor-gadget/ig-mcp-server
 go 1.24.1
 
 require (
-	github.com/inspektor-gadget/inspektor-gadget v0.41.0
+	github.com/inspektor-gadget/inspektor-gadget v0.42.0
 	github.com/mark3labs/mcp-go v0.32.0
 	gopkg.in/yaml.v3 v3.0.1
 	helm.sh/helm/v3 v3.18.3
@@ -89,6 +89,7 @@ require (
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
 	github.com/mxk/go-flowrate v0.0.0-20140419014527-cca7078d478f // indirect
 	github.com/onsi/ginkgo/v2 v2.23.3 // indirect
+	github.com/onsi/gomega v1.36.2 // indirect
 	github.com/opencontainers/go-digest v1.0.0 // indirect
 	github.com/opencontainers/image-spec v1.1.1 // indirect
 	github.com/pelletier/go-toml/v2 v2.2.4 // indirect
@@ -148,7 +149,6 @@ require (
 	k8s.io/kubectl v0.33.2 // indirect
 	k8s.io/utils v0.0.0-20250604170112-4c0f3b243397 // indirect
 	oras.land/oras-go/v2 v2.6.0 // indirect
-	sigs.k8s.io/controller-runtime v0.21.0 // indirect
 	sigs.k8s.io/json v0.0.0-20241014173422-cfa47c3a1cc8 // indirect
 	sigs.k8s.io/kustomize/api v0.19.0 // indirect
 	sigs.k8s.io/kustomize/kyaml v0.19.0 // indirect
@@ -156,3 +156,6 @@ require (
 	sigs.k8s.io/structured-merge-diff/v4 v4.7.0 // indirect
 	sigs.k8s.io/yaml v1.5.0 // indirect
 )
+
+// Override cilium/ebpf dependency with inspektor-gadget/ebpf for compatibility with inspektor-gadget/inspektor-gadget
+replace github.com/cilium/ebpf => github.com/inspektor-gadget/ebpf v0.0.0-20250625205447-f72d1b709b03
