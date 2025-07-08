@@ -17,6 +17,8 @@ package tools
 import (
 	"context"
 	"fmt"
+	"runtime/debug"
+	"strings"
 	"time"
 
 	"github.com/mark3labs/mcp-go/mcp"
@@ -63,7 +65,7 @@ func deployHandler(registry *GadgetToolRegistry, images []string) server.ToolHan
 		var err error
 		version := request.GetString("chart_version", "")
 		if version == "" {
-			version, err = getLatestChartVersion()
+			version, err = getChartVersion()
 			if err != nil {
 				return nil, fmt.Errorf("get latest chart version: %w", err)
 			}
@@ -111,8 +113,16 @@ func deployHandler(registry *GadgetToolRegistry, images []string) server.ToolHan
 	}
 }
 
-// getLatestChartVersion is a placeholder function that simulates fetching the latest chart version.
-// TODO: Get this from registry or github releases.
-func getLatestChartVersion() (string, error) {
+// getChartVersion retrieves the version of the Inspektor Gadget Helm chart from the build info.
+func getChartVersion() (string, error) {
+	if info, ok := debug.ReadBuildInfo(); ok {
+		for _, dep := range info.Deps {
+			if dep.Path == "github.com/inspektor-gadget/inspektor-gadget" {
+				if dep.Version != "" {
+					return strings.TrimPrefix(dep.Version, "v"), nil
+				}
+			}
+		}
+	}
 	return "1.0.0-dev", nil
 }
