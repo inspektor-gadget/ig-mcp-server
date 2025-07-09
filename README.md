@@ -18,8 +18,16 @@ https://github.com/user-attachments/assets/86367982-c0aa-455c-ac9e-ca43348899df
 3. Start using AI commands in VS Code Copilot Chat
 4. Try: "Show me DNS traffic" or "Deploy Inspektor Gadget"
 
-```bash
-code --add-mcp '{
+## Installation
+
+You can use the following commands to quickly configure the Inspektor Gadget MCP server using either Docker or a binary in your VS Code settings.
+
+### Docker
+
+<summary>
+  <details>
+    <summary>Install Inspektor Gadget MCP Server - Artifact Hub Discovery</summary>
+    <pre><code>code --add-mcp '{
   "name": "inspektor-gadget",
   "command": "docker",
   "args": [
@@ -31,13 +39,11 @@ code --add-mcp '{
     "ghcr.io/inspektor-gadget/ig-mcp-server:latest",
     "-gadget-discoverer=artifacthub"
   ]
-}'
-```
-
-or with specific network gadgets:
-
-```bash
-code --add-mcp '{
+}'</code></pre>
+  </details>
+<details>
+    <summary>Install Inspektor Gadget MCP Server - Specific Gadgets</summary>
+    <pre><code>code --add-mcp '{
   "name": "inspektor-gadget",
   "command": "docker",
   "args": [
@@ -48,9 +54,49 @@ code --add-mcp '{
     "type=bind,src=${env:HOME}/.kube/config,dst=/kubeconfig",
     "ghcr.io/inspektor-gadget/ig-mcp-server:latest",
     "-gadget-images=trace_dns:latest,trace_tcp:latest,snapshot_process:latest,snapshot_socket:latest"
+  ]
+}'</code></pre>
+  </details>
+</summary>
+
+### Binary
+
+You can head to the [Releases](https://github.com/inspektor-gadget/ig-mcp-server/releases) page and download the latest binary for your platform:
+
+<summary>
+  <details>
+    <summary>Linux</summary>
+    <pre><code>MCP_VERSION=$(curl -s https://api.github.com/repos/inspektor-gadget/ig-mcp-server/releases/latest | jq -r .tag_name)
+MCP_ARCH=amd64
+curl -sL https://github.com/inspektor-gadget/ig-mcp-server/releases/download/${MCP_VERSION}/ig-mcp-server-linux-${MCP_ARCH}-${MCP_VERSION}.tar.gz | sudo tar -C /usr/local/bin -xzf - ig-mcp-server
+</code></pre>
+  </details>
+</summary>
+
+After downloading, you can run the following command to add it to your VS Code MCP configuration.
+
+<summary>
+  <details>
+    <summary>Install Inspektor Gadget MCP Server - Artifact Hub Discovery</summary>
+    <pre><code>code --add-mcp '{
+  "name": "inspektor-gadget",
+  "command": "ig-mcp-server",
+  "args": [
+    "-gadget-discoverer=artifacthub"
+  ]
+}'</code></pre>
+  </details>
+<details>
+    <summary>Install Inspektor Gadget MCP Server - Specific Gadgets</summary>
+    <pre><code>code --add-mcp '{
+    "name": "inspektor-gadget",
+    "command": "ig-mcp-server",
+    "args": [
+      "-gadget-images=trace_dns:latest,trace_tcp:latest"
     ]
-}'
-```    
+}'</code></pre>
+    </details>
+</summary>
 
 ## Available Tools
 

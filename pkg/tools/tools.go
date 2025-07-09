@@ -203,59 +203,6 @@ func (r *GadgetToolRegistry) getGadgetTools(ctx context.Context, images []string
 	return tools, nil
 }
 
-func (r *GadgetToolRegistry) registerGadgets(ctx context.Context, images []string) error {
-	sem := make(chan struct{}, 8) // Limit concurrency to 8
-	var wg sync.WaitGroup
-	resultsChan := make(chan struct {
-		img  string
-		info *api.GadgetInfo
-		err  error
-	}, len(images))
-
-	for _, img := range images {
-		wg.Add(1)
-		sem <- struct{}{}
-		go func(image string) {
-			defer func() {
-				wg.Done()
-				<-sem
-			}()
-			info, err := r.gadgetMgr.GetInfo(ctx, image)
-			resultsChan <- struct {
-				img  string
-				info *api.GadgetInfo
-				err  error
-			}{img: img, info: info, err: err}
-		}(img)
-	}
-
-	go func() {
-		wg.Wait()
-		close(resultsChan)
-	}()
-
-	for result := range resultsChan {
-		if result.err != nil {
-			log.Warn("Skipping gadget image due to error", "image", result.img, "error", result.err)
-			continue
-		}
-		info := result.info
-		t, err := r.toolFromGadgetInfo(info)
-		if err != nil {
-			return fmt.Errorf("creating tool from gadget info for %s: %w", info.ImageName, err)
-		}
-		h := r.handlerFromGadgetInfo(info)
-		st := server.ServerTool{
-			Tool:    t,
-			Handler: h,
-		}
-		log.Debug("Adding tool", "image", info.ImageName, "name", t.Name)
-		r.tools[normalizeToolName(info.ImageName)] = st
-	}
-
-	return nil
-}
-
 func (r *GadgetToolRegistry) toolFromGadgetInfo(info *api.GadgetInfo) (mcp.Tool, error) {
 	var tool mcp.Tool
 	var metadata *metadatav1.GadgetMetadata
