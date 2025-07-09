@@ -54,14 +54,14 @@ type gadgetManager struct {
 }
 
 // NewGadgetManager creates a new GadgetManager instance.
-func NewGadgetManager(runtime string) (GadgetManager, error) {
+func NewGadgetManager(env string) (GadgetManager, error) {
 	var rt igruntime.Runtime
 	var err error
-	switch runtime {
-	case "grpc-k8s":
+	switch env {
+	case "kubernetes":
 		rt, err = newGrpcK8sRuntime()
 	default:
-		return nil, fmt.Errorf("unsupported gadget manager runtime: %s", runtime)
+		return nil, fmt.Errorf("unsupported gadget manager environment: %s", env)
 	}
 	if err != nil {
 		return nil, fmt.Errorf("creating gadget manager runtime: %w", err)

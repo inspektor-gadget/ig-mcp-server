@@ -56,14 +56,14 @@ Create `.vscode/mcp.json` in your project directory:
 
 Key command-line options:
 
-| Option | Description | Default |
-|--------|-------------|---------|
-| `-gadget-discoverer` | Gadget discovery method (artifacthub) | - |
-| `-gadget-images` | Manual gadget list (e.g., 'trace_dns:latest,trace_open:latest') | - |
-| `-artifacthub-official` | Use only official Artifact Hub gadgets | false |
-| `-environment` | Target environment | kubernetes |
-| `-transport` | Transport protocol | stdio |
-| `-log-level` | Logging level (debug, info, warn, error) | info |
+| Option | Description | Default                    |
+|--------|-------------|----------------------------|
+| `-gadget-discoverer` | Gadget discovery method (artifacthub) | -                          |
+| `-gadget-images` | Manual gadget list (e.g., 'trace_dns:latest,trace_open:latest') | -                          |
+| `-artifacthub-official` | Use only official Artifact Hub gadgets | true                       |
+| `-environment` | Target environment | kubernetes                 |
+| `-transport` | Transport protocol | stdio, sse, streamable-http | stdio |
+| `-log-level` | Logging level (debug, info, warn, error) | info                       |
 
 For all options:
 

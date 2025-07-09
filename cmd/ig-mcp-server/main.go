@@ -16,20 +16,17 @@ package main
 
 import (
 	"context"
-	"errors"
 	"flag"
 	"fmt"
 	"log/slog"
-	"net/http"
 	"os"
 	"os/signal"
 	"strings"
 	"syscall"
 
-	"github.com/inspektor-gadget/ig-mcp-server/pkg/server"
-
 	"github.com/inspektor-gadget/ig-mcp-server/pkg/discoverer"
 	"github.com/inspektor-gadget/ig-mcp-server/pkg/gadgetmanager"
+	"github.com/inspektor-gadget/ig-mcp-server/pkg/server"
 	"github.com/inspektor-gadget/ig-mcp-server/pkg/tools"
 )
 
@@ -42,10 +39,10 @@ var (
 	transportHost = flag.String("transport-host", "localhost", "host for the transport")
 	transportPort = flag.String("transport-port", "8080", "port for the transport")
 	// Inspektor Gadget configuration
-	runtime                       = flag.String("runtime", "grpc-k8s", "runtime to use")
+	environment                   = flag.String("environment", "kubernetes", "environment to use (currently only 'kubernetes' is supported)")
 	gadgetImages                  = flag.String("gadget-images", "", "comma-separated list of gadget images to use (e.g. 'trace_dns:latest,trace_open:latest')")
 	gadgetDiscoverer              = flag.String("gadget-discoverer", "", "gadget discoverer to use (artifacthub)")
-	artifactHubDiscovererOfficial = flag.Bool("artifacthub-official", false, "use only official gadgets from Artifact Hub")
+	artifactHubDiscovererOfficial = flag.Bool("artifacthub-official", true, "use only official gadgets from Artifact Hub")
 	// Server configuration
 	logLevel    = flag.String("log-level", "", "log level (debug, info, warn, error)")
 	versionFlag = flag.Bool("version", false, "print version and exit")
@@ -54,9 +51,6 @@ var (
 var log = slog.Default().With("component", "ig-mcp-server")
 
 func main() {
-	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
-	defer stop()
-
 	flag.Parse()
 
 	if *versionFlag {
@@ -68,6 +62,10 @@ func main() {
 		logFatal("either -gadget-images or -gadget-discoverer must be specified")
 	}
 
+	if *environment != "kubernetes" {
+		logFatal("unsupported environment, only 'kubernetes' is supported")
+	}
+
 	if *logLevel != "" {
 		l, err := parseLogLevel(*logLevel)
 		if err != nil {
@@ -76,12 +74,12 @@ func main() {
 		slog.SetLogLoggerLevel(l)
 	}
 
-	mgr, err := gadgetmanager.NewGadgetManager(*runtime)
+	mgr, err := gadgetmanager.NewGadgetManager(*environment)
 	if err != nil {
 		logFatal("failed to create gadget manager", "error", err)
 	}
 	defer mgr.Close()
-	registry := tools.NewToolRegistry(mgr)
+	registry := tools.NewToolRegistry(mgr, *environment)
 
 	var images []string
 	if gadgetImages != nil && *gadgetImages != "" {
@@ -101,13 +99,16 @@ func main() {
 		}
 	}
 
+	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer stop()
 	srv := server.New(version, registry)
 	if err = registry.Prepare(ctx, images); err != nil {
 		logFatal("failed to prepare tool registry", "error", err)
 	}
 
 	go func() {
-		if err = srv.Start(*transport, *transportHost, *transportPort); err != nil && !errors.Is(err, http.ErrServerClosed) {
+		defer stop()
+		if err = srv.Start(*transport, *transportHost, *transportPort); err != nil {
 			log.Error("failed to start server", "error", err)
 		}
 	}()

@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net"
+	"os"
 
 	"github.com/mark3labs/mcp-go/server"
 
@@ -37,9 +38,10 @@ var SupportedTransports = []string{StdioTransport, SSETransport, StreamableHTTPT
 
 // Server is the main mcpServer for the Inspektor Gadget MCP server.
 type Server struct {
-	mcpServer  *server.MCPServer
-	sseSever   *server.SSEServer
-	httpServer *server.StreamableHTTPServer
+	mcpServer   *server.MCPServer
+	sseSever    *server.SSEServer
+	httpServer  *server.StreamableHTTPServer
+	stdioCancel func()
 }
 
 // New creates a new instance of the Inspektor Gadget MCP server.
@@ -66,7 +68,9 @@ func (s *Server) Start(transport, host, port string) error {
 	switch transport {
 	case StdioTransport:
 		log.Info("Starting MCP server", "transport", transport)
-		return server.ServeStdio(s.mcpServer)
+		var ctx context.Context
+		ctx, s.stdioCancel = context.WithCancel(context.Background())
+		return server.NewStdioServer(s.mcpServer).Listen(ctx, os.Stdin, os.Stdout)
 	case SSETransport:
 		log.Info("Starting MCP server", "transport", transport, "host", host, "port", port)
 		s.sseSever = server.NewSSEServer(s.mcpServer)
@@ -81,6 +85,9 @@ func (s *Server) Start(transport, host, port string) error {
 
 func (s *Server) Shutdown(ctx context.Context) error {
 	log.Info("Shutting down MCP server")
+	if s.stdioCancel != nil {
+		s.stdioCancel()
+	}
 	if s.sseSever != nil {
 		if err := s.sseSever.Shutdown(ctx); err != nil {
 			return fmt.Errorf("shutting down SSE server: %w", err)

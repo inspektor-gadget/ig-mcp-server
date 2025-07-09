@@ -53,6 +53,7 @@ type GadgetToolRegistry struct {
 	mu        sync.Mutex
 	callbacks []ToolRegistryCallback
 	gadgetMgr gadgetmanager.GadgetManager
+	env       string
 }
 
 type ToolData struct {
@@ -69,10 +70,11 @@ type FieldData struct {
 }
 
 // NewToolRegistry creates a new GadgetToolRegistry instance.
-func NewToolRegistry(manager gadgetmanager.GadgetManager) *GadgetToolRegistry {
+func NewToolRegistry(manager gadgetmanager.GadgetManager, env string) *GadgetToolRegistry {
 	return &GadgetToolRegistry{
 		tools:     make(map[string]server.ServerTool),
 		gadgetMgr: manager,
+		env:       env,
 	}
 }
 
@@ -91,39 +93,114 @@ func (r *GadgetToolRegistry) RegisterCallback(callback ToolRegistryCallback) {
 func (r *GadgetToolRegistry) Prepare(ctx context.Context, images []string) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	deployTool := newDeployTool(r, images)
-	undeployTool := newUndeployTool()
-	isDeployed := newIsDeployedTool()
-	waitTool := newWaitTool()
-	stopTool := r.newStopTool()
-	getResultsTool := r.newGetResultsTool()
-	r.tools[deployTool.Tool.Name] = deployTool
-	r.tools[undeployTool.Tool.Name] = undeployTool
-	r.tools[isDeployed.Tool.Name] = isDeployed
-	r.tools[waitTool.Tool.Name] = waitTool
-	r.tools[stopTool.Tool.Name] = stopTool
-	r.tools[getResultsTool.Tool.Name] = getResultsTool
 
-	// Skip registering gadgets if Inspektor Gadget is not deployed
-	deployed, _, err := isInspektorGadgetDeployed(ctx)
-	if err != nil {
-		return fmt.Errorf("checking if Inspektor Gadget is deployed: %w", err)
-	}
-	if deployed {
-		err = r.registerGadgets(ctx, images)
-		if err != nil {
-			return fmt.Errorf("registering gadgets: %w", err)
-		}
-	} else {
-		log.Info("Inspektor Gadget is not deployed, skipping gadget registration")
+	r.registerDefaultTools(ctx, images)
+
+	return nil
+}
+
+func (r *GadgetToolRegistry) registerDefaultTools(ctx context.Context, images []string) {
+	for _, tool := range r.getDefaultTools(ctx, images) {
+		log.Debug("Adding default tool", "name", tool.Tool.Name)
+		r.tools[tool.Tool.Name] = tool
 	}
 
+	// invoke callback to register default to the server
 	for _, callback := range r.callbacks {
 		log.Debug("Invoking tool registry callback", "tools_count", len(r.tools))
 		callback(r.all()...)
 	}
+}
 
-	return nil
+func (r *GadgetToolRegistry) getDefaultTools(ctx context.Context, images []string) []server.ServerTool {
+	tools := []server.ServerTool{
+		r.newStopTool(),
+		r.newGetResultsTool(),
+		newWaitTool(),
+	}
+
+	// Add environment-specific tools
+	tools = append(tools, r.getToolsForEnvironment(ctx, images)...)
+
+	return tools
+}
+
+func (r *GadgetToolRegistry) getToolsForEnvironment(ctx context.Context, images []string) []server.ServerTool {
+	var tools []server.ServerTool
+	if r.env == "kubernetes" {
+		tools = []server.ServerTool{
+			newDeployTool(r, images),
+			newUndeployTool(),
+			newIsDeployedTool(),
+		}
+		deployed, _, err := isInspektorGadgetDeployed(ctx)
+		if err != nil || !deployed {
+			log.Warn("Inspektor Gadget is not deployed, skipping fetching gadget tools", "error", err)
+			return tools
+		}
+	}
+
+	gadgetTools, err := r.getGadgetTools(ctx, images)
+	if err != nil {
+		log.Warn("Failed to get gadget tools", "error", err)
+		return tools
+	}
+
+	return append(tools, gadgetTools...)
+}
+
+func (r *GadgetToolRegistry) getGadgetTools(ctx context.Context, images []string) ([]server.ServerTool, error) {
+	sem := make(chan struct{}, 8) // Limit concurrency to 8
+	var wg sync.WaitGroup
+	resultsChan := make(chan struct {
+		img  string
+		info *api.GadgetInfo
+		err  error
+	}, len(images))
+
+	for _, img := range images {
+		wg.Add(1)
+		sem <- struct{}{}
+		go func(image string) {
+			defer func() {
+				wg.Done()
+				<-sem
+			}()
+			info, err := r.gadgetMgr.GetInfo(ctx, image)
+			resultsChan <- struct {
+				img  string
+				info *api.GadgetInfo
+				err  error
+			}{img: img, info: info, err: err}
+		}(img)
+	}
+
+	go func() {
+		wg.Wait()
+		close(resultsChan)
+	}()
+
+	var tools []server.ServerTool
+	for result := range resultsChan {
+		if result.err != nil {
+			log.Warn("Skipping gadget image due to error", "image", result.img, "error", result.err)
+			continue
+		}
+		info := result.info
+		t, err := r.toolFromGadgetInfo(info)
+		if err != nil {
+			return nil, fmt.Errorf("creating tool from gadget info for %s: %w", info.ImageName, err)
+		}
+		h := r.handlerFromGadgetInfo(info)
+		st := server.ServerTool{
+			Tool:    t,
+			Handler: h,
+		}
+		log.Debug("Adding tool", "name", t.Name, "image", info.ImageName)
+		tools = append(tools, st)
+	}
+
+	return tools, nil
 }
 
 func (r *GadgetToolRegistry) registerGadgets(ctx context.Context, images []string) error {
@@ -204,7 +281,7 @@ func (r *GadgetToolRegistry) toolFromGadgetInfo(info *api.GadgetInfo) (mcp.Tool,
 	td := ToolData{
 		Name:        normalizeToolName(metadata.Name),
 		Description: metadata.Description,
-		Environment: "Kubernetes",
+		Environment: r.env,
 		Fields:      fields,
 	}
 	if err = tmpl.Execute(&out, td); err != nil {
@@ -340,7 +417,7 @@ func isInspektorGadgetDeployed(ctx context.Context) (bool, string, error) {
 
 func truncateResults(results string) string {
 	if len(results) > maxResultLen {
-		return fmt.Sprintf("\n<results>%s</results>\n<isTruncated>true</isTruncated>\n", results[:maxResultLen]+"…")
+		return fmt.Sprintf("\n<isTruncated>true</isTruncated>\n<results>%s</results>\n", results[:maxResultLen]+"…")
 	}
 	return fmt.Sprintf("\n<results>%s</results>\n", results)
 }

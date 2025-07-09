@@ -55,15 +55,24 @@ code --add-mcp '{
 ## Available Tools
 
 ### Management Tools
+- **is_inspektor_gadget_deployed**: Checks if Inspektor Gadget is deployed in your cluster
 - **deploy_inspektor_gadget**: Installs Inspektor Gadget in your cluster
 - **undeploy_inspektor_gadget**: Removes Inspektor Gadget from your cluster
 
-### Gadget Discovery
+### Lifecycle Tools
 
-![Gadget Tools](media/gadget-tools.png)
+- **gadgets**: Each gadget has its own MCP tool (e.g., `trace_dns`, `trace_tcp`, etc.). It currently supports running gadgets in foreground mode, which is useful for debugging/development and also in background mode for observability.
+- **stop-gadget**: Stops a background running gadget
+- **get-results**: Retrieves results from a background running gadget
+
+#### Gadget Discovery
+
+Gadget discovery allows controlling which gadgets are available for use. You can choose between two methods:
 
 - **Automatic**: Uses Artifact Hub (`-gadget-discoverer=artifacthub`)
 - **Manual**: Specify gadgets directly (`-gadget-images=trace_dns:latest`)
+
+![Gadget Tools](media/gadget-tools.png)
 
 See [INSTALL.md](INSTALL.md) for configuration options.
 
