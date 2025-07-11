@@ -17,6 +17,7 @@ https://github.com/user-attachments/assets/86367982-c0aa-455c-ac9e-ca43348899df
 2. Configure the MCP server in VS Code (see [INSTALL.md](INSTALL.md))
 3. Start using AI commands in VS Code Copilot Chat
 4. Try: "Show me DNS traffic" or "Deploy Inspektor Gadget"
+5. Head to [examples](examples/README.md) for detailed examples.
 
 ## Installation
 
@@ -131,6 +132,7 @@ See [INSTALL.md](INSTALL.md) for configuration options.
 ## Resources
 
 - 📖 [Documentation](https://inspektor-gadget.io/docs/)
+- 🔍 [Examples](examples/README.md)
 - 🐛 [Issues](https://github.com/inspektor-gadget/ig-mcp-server/issues)
 - 💬 [Slack](https://kubernetes.slack.com/channels/inspektor-gadget)
 - 🌐 [Website](https://inspektor-gadget.io/)
