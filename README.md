@@ -76,24 +76,27 @@ You can head to the [Releases](https://github.com/inspektor-gadget/ig-mcp-server
     <summary>Linux</summary>
     <pre><code>MCP_VERSION=$(curl -s https://api.github.com/repos/inspektor-gadget/ig-mcp-server/releases/latest | jq -r .tag_name)
 MCP_ARCH=amd64
-curl -sL https://github.com/inspektor-gadget/ig-mcp-server/releases/download/${MCP_VERSION}/ig-mcp-server-linux-${MCP_ARCH}-${MCP_VERSION}.tar.gz | sudo tar -C /usr/local/bin -xzf - ig-mcp-server
+curl -sL https://github.com/inspektor-gadget/ig-mcp-server/releases/download/${MCP_VERSION}/ig-mcp-server-linux-${MCP_ARCH}.tar.gz | sudo tar -C /usr/local/bin -xzf - ig-mcp-server
 </code></pre>
   </details>
   <details>
     <summary>macOS</summary>
     <pre><code>MCP_VERSION=$(curl -s https://api.github.com/repos/inspektor-gadget/ig-mcp-server/releases/latest | jq -r .tag_name)
-MCP_ARCH=arm64 # or amd64 for Intel Macs
-curl -sL https://github.com/inspektor-gadget/ig-mcp-server/releases/download/${MCP_VERSION}/ig-mcp-server-darwin-${MCP_ARCH}-${MCP_VERSION}.tar.gz | sudo tar -C /usr/local/bin -xzf - ig-mcp-server
+MCP_ARCH=arm64
+curl -sL https://github.com/inspektor-gadget/ig-mcp-server/releases/download/${MCP_VERSION}/ig-mcp-server-darwin-${MCP_ARCH}.tar.gz | sudo tar -C /usr/local/bin -xzf - ig-mcp-server
 </code></pre>
   </details>
   <details>
     <summary>Windows</summary>
-    <pre><code># PowerShell
-$MCP_VERSION = (Invoke-RestMethod -Uri "https://api.github.com/repos/inspektor-gadget/ig-mcp-server/releases/latest").tag_name
+    <pre><code>$MCP_VERSION = (curl.exe -s https://api.github.com/repos/inspektor-gadget/ig-mcp-server/releases/latest | ConvertFrom-Json).tag_name
 $MCP_ARCH = "amd64"
-Invoke-WebRequest -Uri "https://github.com/inspektor-gadget/ig-mcp-server/releases/download/$MCP_VERSION/ig-mcp-server-windows-$MCP_ARCH-$MCP_VERSION.zip" -OutFile "ig-mcp-server.zip"
-Expand-Archive -Path "ig-mcp-server.zip" -DestinationPath "C:\Program Files\ig-mcp-server"
-# Add C:\Program Files\ig-mcp-server to your PATH environment variable
+curl.exe -L "https://github.com/inspektor-gadget/ig-mcp-server/releases/download/$MCP_VERSION/ig-mcp-server-windows-$MCP_ARCH.tar.gz" -o "ig-mcp-server.tar.gz"
+$destPath = "C:\Program Files\ig-mcp-server"
+if (-Not (Test-Path $destPath -PathType Container)) { mkdir $destPath}
+tar.exe -xzf "ig-mcp-server.tar.gz" -C "$destPath"
+rm ig-mcp-server.tar.gz
+Write-Host "✅ Extracted to $destPath"
+Write-Host "👉 Please add '$destPath' to your PATH environment variable manually."
 </code></pre>
   </details>
 </summary>
@@ -132,9 +135,15 @@ After downloading, you can run the following command to add it to your VS Code M
 
 ### Lifecycle Tools
 
-- **gadgets**: Each gadget has its own MCP tool (e.g., `trace_dns`, `trace_tcp`, etc.). It currently supports running gadgets in foreground mode, which is useful for debugging/development and also in background mode for observability.
 - **stop-gadget**: Stops a background running gadget
 - **get-results**: Retrieves results from a background running gadget
+- **wait**: Waits for a gadget to finish running
+
+### Dynamic Tools
+
+Each gadget is registered as its own MCP tool (e.g., `trace_dns`, `trace_tcp`, etc.) and supports running gadgets in foreground mode, which is useful for debugging/development and also in background mode for observability.
+
+Also, You can control which gadgets are available by configuring the MCP server with the `-gadget-discoverer` or `-gadget-images` options, allowing you to limit the tools to only those you need.
 
 #### Gadget Discovery
 
