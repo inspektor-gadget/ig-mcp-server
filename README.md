@@ -1,3 +1,10 @@
+[![GitHub Release](https://img.shields.io/github/v/release/inspektor-gadget/ig-mcp-server)](https://github.com/inspektor-gadget/ig-mcp-server/releases)
+[![Docker Image](https://img.shields.io/badge/docker-ghcr.io%2Finspektor--gadget%2Fig--mcp--server-blue)](https://github.com/inspektor-gadget/ig-mcp-server/pkgs/container/ig-mcp-server)
+[![License](https://img.shields.io/github/license/inspektor-gadget/ig-mcp-server)](LICENSE)
+[![Slack](https://img.shields.io/badge/slack-%23inspektor--gadget-brightgreen)](https://kubernetes.slack.com/channels/inspektor-gadget)
+[![Go Report Card](https://goreportcard.com/badge/github.com/inspektor-gadget/ig-mcp-server)](https://goreportcard.com/report/github.com/inspektor-gadget/ig-mcp-server)
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/inspektor-gadget/ig-mcp-server)
+
 # Inspektor Gadget MCP Server
 
 AI-powered debugging and inspection for Kubernetes clusters using Inspektor Gadget.
