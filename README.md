@@ -1,8 +1,8 @@
 [![GitHub Release](https://img.shields.io/github/v/release/inspektor-gadget/ig-mcp-server)](https://github.com/inspektor-gadget/ig-mcp-server/releases)
-[![Docker Image](https://img.shields.io/badge/docker-ghcr.io%2Finspektor--gadget%2Fig--mcp--server-blue)](https://github.com/inspektor-gadget/ig-mcp-server/pkgs/container/ig-mcp-server)
 [![License](https://img.shields.io/github/license/inspektor-gadget/ig-mcp-server)](LICENSE)
 [![Slack](https://img.shields.io/badge/slack-%23inspektor--gadget-brightgreen)](https://kubernetes.slack.com/channels/inspektor-gadget)
 [![Go Report Card](https://goreportcard.com/badge/github.com/inspektor-gadget/ig-mcp-server)](https://goreportcard.com/report/github.com/inspektor-gadget/ig-mcp-server)
+[![Examples](https://img.shields.io/badge/examples-view-orange)](examples/README.md)
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/inspektor-gadget/ig-mcp-server)
 
 # Inspektor Gadget MCP Server
@@ -77,6 +77,23 @@ You can head to the [Releases](https://github.com/inspektor-gadget/ig-mcp-server
     <pre><code>MCP_VERSION=$(curl -s https://api.github.com/repos/inspektor-gadget/ig-mcp-server/releases/latest | jq -r .tag_name)
 MCP_ARCH=amd64
 curl -sL https://github.com/inspektor-gadget/ig-mcp-server/releases/download/${MCP_VERSION}/ig-mcp-server-linux-${MCP_ARCH}-${MCP_VERSION}.tar.gz | sudo tar -C /usr/local/bin -xzf - ig-mcp-server
+</code></pre>
+  </details>
+  <details>
+    <summary>macOS</summary>
+    <pre><code>MCP_VERSION=$(curl -s https://api.github.com/repos/inspektor-gadget/ig-mcp-server/releases/latest | jq -r .tag_name)
+MCP_ARCH=arm64 # or amd64 for Intel Macs
+curl -sL https://github.com/inspektor-gadget/ig-mcp-server/releases/download/${MCP_VERSION}/ig-mcp-server-darwin-${MCP_ARCH}-${MCP_VERSION}.tar.gz | sudo tar -C /usr/local/bin -xzf - ig-mcp-server
+</code></pre>
+  </details>
+  <details>
+    <summary>Windows</summary>
+    <pre><code># PowerShell
+$MCP_VERSION = (Invoke-RestMethod -Uri "https://api.github.com/repos/inspektor-gadget/ig-mcp-server/releases/latest").tag_name
+$MCP_ARCH = "amd64"
+Invoke-WebRequest -Uri "https://github.com/inspektor-gadget/ig-mcp-server/releases/download/$MCP_VERSION/ig-mcp-server-windows-$MCP_ARCH-$MCP_VERSION.zip" -OutFile "ig-mcp-server.zip"
+Expand-Archive -Path "ig-mcp-server.zip" -DestinationPath "C:\Program Files\ig-mcp-server"
+# Add C:\Program Files\ig-mcp-server to your PATH environment variable
 </code></pre>
   </details>
 </summary>
