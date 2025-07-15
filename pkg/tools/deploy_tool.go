@@ -84,6 +84,9 @@ func deployHandler(registry *GadgetToolRegistry, images []string) server.ToolHan
 			deployer.WithReleaseName(releaseName),
 			deployer.WithNamespace(namespace),
 		}
+		if registry.k8sConfig != nil {
+			opts = append(opts, deployer.WithK8sConfig(registry.k8sConfig))
+		}
 		err = ist.Deploy(ctx, opts...)
 		if err != nil {
 			return mcp.NewToolResultError(err.Error()), nil

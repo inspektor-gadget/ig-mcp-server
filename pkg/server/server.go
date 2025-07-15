@@ -36,7 +36,7 @@ var log = slog.Default().With("component", "sever")
 
 var SupportedTransports = []string{StdioTransport, SSETransport, StreamableHTTPTransport}
 
-// Server is the main mcpServer for the Inspektor Gadget MCP server.
+// Server is the main server for the Inspektor Gadget MCP server.
 type Server struct {
 	mcpServer   *server.MCPServer
 	sseSever    *server.SSEServer
@@ -47,7 +47,7 @@ type Server struct {
 // New creates a new instance of the Inspektor Gadget MCP server.
 func New(version string, registry *tools.GadgetToolRegistry) *Server {
 	ms := server.NewMCPServer(
-		"ig-mcp-mcpServer",
+		"ig-mcp-server",
 		version,
 		server.WithLogging(),
 		server.WithRecovery(),
@@ -63,7 +63,7 @@ func New(version string, registry *tools.GadgetToolRegistry) *Server {
 	}
 }
 
-// Start starts the MCP mcpServer and listens for incoming connections based on transport.
+// Start starts the MCP server and listens for incoming connections based on transport.
 func (s *Server) Start(transport, host, port string) error {
 	switch transport {
 	case StdioTransport:

@@ -55,7 +55,7 @@ This example demonstrates how to use Inspektor Gadget MCP server to gain insight
 ![Initial Prompt](../../media/kubernetes/understanding-kubernetes/initial-prompt.png)
 
 > **💡 Commentary:** Notice how we don’t specify which gadget to use—AI selects the most appropriate one based on the context. While it could have run the gadgets in the foreground (the default behavior), it chose to run them in the background, which better fits our use case.
-> Also, how we specify the need for concise output, which is important for documentation purposes.
+> Also, see how we specify the need for concise output, which is important for documentation purposes.
 
 #### AI:
 

@@ -130,8 +130,8 @@ After downloading, you can run the following command to add it to your VS Code M
 
 ### Management Tools
 - **is_inspektor_gadget_deployed**: Checks if Inspektor Gadget is deployed in your cluster
-- **deploy_inspektor_gadget**: Installs Inspektor Gadget in your cluster
-- **undeploy_inspektor_gadget**: Removes Inspektor Gadget from your cluster
+- **deploy_inspektor_gadget**: Installs Inspektor Gadget in your cluster (skipped if `-read-only` is set)
+- **undeploy_inspektor_gadget**: Removes Inspektor Gadget from your cluster (skipped if `-read-only` is set)
 
 ### Lifecycle Tools
 
@@ -160,7 +160,7 @@ See [INSTALL.md](INSTALL.md) for configuration options.
 
 - Requires read-only access to your kubeconfig file
 - Needs network access for Artifact Hub discovery
-- Ensure appropriate RBAC policies in your cluster
+- See [security guide](SECURITY.md) for setting up server with minimal permissions
 
 ## Resources
 
@@ -170,6 +170,7 @@ See [INSTALL.md](INSTALL.md) for configuration options.
 - 💬 [Slack](https://kubernetes.slack.com/channels/inspektor-gadget)
 - 🌐 [Website](https://inspektor-gadget.io/)
 - 📋 [Troubleshooting](TROUBLESHOOTING.md)
+- 🔒 [Security Guide](SECURITY.md)
 
 ## Related Projects
 

@@ -24,7 +24,7 @@ import (
 	"github.com/inspektor-gadget/ig-mcp-server/pkg/deployer"
 )
 
-func newUndeployTool() server.ServerTool {
+func newUndeployTool(registry *GadgetToolRegistry) server.ServerTool {
 	opts := []mcp.ToolOption{
 		mcp.WithDescription("Undeploy Inspektor Gadget from the target system"),
 		mcp.WithReadOnlyHintAnnotation(false),
@@ -44,26 +44,32 @@ func newUndeployTool() server.ServerTool {
 
 	return server.ServerTool{
 		Tool:    tool,
-		Handler: undeployHandler,
+		Handler: undeployHandler(registry),
 	}
 }
 
-func undeployHandler(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	releaseName := request.GetString("release", defaultReleaseName)
-	namespace := request.GetString("namespace", defaultNamespace)
+func undeployHandler(registry *GadgetToolRegistry) server.ToolHandlerFunc {
+	// Return the handler function
+	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		releaseName := request.GetString("release", defaultReleaseName)
+		namespace := request.GetString("namespace", defaultNamespace)
 
-	ist, err := deployer.NewDeployer(deployer.KubernetesEnv)
-	if err != nil {
-		return nil, fmt.Errorf("create deployer: %w", err)
-	}
+		ist, err := deployer.NewDeployer(deployer.KubernetesEnv)
+		if err != nil {
+			return nil, fmt.Errorf("create deployer: %w", err)
+		}
 
-	opts := []deployer.RunOption{
-		deployer.WithReleaseName(releaseName),
-		deployer.WithNamespace(namespace),
+		opts := []deployer.RunOption{
+			deployer.WithReleaseName(releaseName),
+			deployer.WithNamespace(namespace),
+		}
+		if registry.k8sConfig != nil {
+			opts = append(opts, deployer.WithK8sConfig(registry.k8sConfig))
+		}
+		err = ist.Undeploy(ctx, opts...)
+		if err != nil {
+			return mcp.NewToolResultError(err.Error()), nil
+		}
+		return mcp.NewToolResultText("Inspektor Gadget undeploy completed successfully"), nil
 	}
-	err = ist.Undeploy(ctx, opts...)
-	if err != nil {
-		return mcp.NewToolResultError(err.Error()), nil
-	}
-	return mcp.NewToolResultText("Inspektor Gadget undeploy completed successfully"), nil
 }

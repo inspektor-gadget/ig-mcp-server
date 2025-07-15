@@ -17,6 +17,8 @@ package deployer
 import (
 	"context"
 	"fmt"
+
+	"k8s.io/cli-runtime/pkg/genericclioptions"
 )
 
 const (
@@ -41,6 +43,7 @@ type config struct {
 	releaseName           string
 	namespace             string
 	skipNamespaceCreation bool
+	k8sConfig             *genericclioptions.ConfigFlags
 }
 
 // NewDeployer creates a new Deployer based on the environment
@@ -80,5 +83,11 @@ func WithNamespace(namespace string) RunOption {
 func WithSkipNamespaceCreation(skip bool) RunOption {
 	return func(c *config) {
 		c.skipNamespaceCreation = skip
+	}
+}
+
+func WithK8sConfig(k8sConfig *genericclioptions.ConfigFlags) RunOption {
+	return func(c *config) {
+		c.k8sConfig = k8sConfig
 	}
 }

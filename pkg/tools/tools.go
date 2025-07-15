@@ -26,6 +26,8 @@ import (
 	"text/template"
 	"time"
 
+	"k8s.io/cli-runtime/pkg/genericclioptions"
+
 	"github.com/inspektor-gadget/inspektor-gadget/cmd/kubectl-gadget/utils"
 	"github.com/inspektor-gadget/inspektor-gadget/pkg/gadget-service/api"
 	metadatav1 "github.com/inspektor-gadget/inspektor-gadget/pkg/metadata/v1"
@@ -52,7 +54,10 @@ type GadgetToolRegistry struct {
 	tools     map[string]server.ServerTool
 	mu        sync.Mutex
 	callbacks []ToolRegistryCallback
+	readonly  bool
+
 	gadgetMgr gadgetmanager.GadgetManager
+	k8sConfig *genericclioptions.ConfigFlags
 	env       string
 }
 
@@ -70,17 +75,23 @@ type FieldData struct {
 }
 
 // NewToolRegistry creates a new GadgetToolRegistry instance.
-func NewToolRegistry(manager gadgetmanager.GadgetManager, env string) *GadgetToolRegistry {
+func NewToolRegistry(manager gadgetmanager.GadgetManager, env string, k8sConfig *genericclioptions.ConfigFlags, readonly bool) *GadgetToolRegistry {
 	return &GadgetToolRegistry{
 		tools:     make(map[string]server.ServerTool),
 		gadgetMgr: manager,
 		env:       env,
+		k8sConfig: k8sConfig,
+		readonly:  readonly,
 	}
 }
 
 func (r *GadgetToolRegistry) all() []server.ServerTool {
 	tools := make([]server.ServerTool, 0, len(r.tools))
 	for _, tool := range r.tools {
+		if r.readonly && tool.Tool.Annotations.ReadOnlyHint != nil && !*tool.Tool.Annotations.ReadOnlyHint {
+			// If the registry is in read-only mode, skip tools that do not have the read-only hint annotation
+			continue
+		}
 		tools = append(tools, tool)
 	}
 	return tools
@@ -130,7 +141,7 @@ func (r *GadgetToolRegistry) getToolsForEnvironment(ctx context.Context, images 
 	if r.env == "kubernetes" {
 		tools = []server.ServerTool{
 			newDeployTool(r, images),
-			newUndeployTool(),
+			newUndeployTool(r),
 			newIsDeployedTool(),
 		}
 		deployed, _, err := isInspektorGadgetDeployed(ctx)

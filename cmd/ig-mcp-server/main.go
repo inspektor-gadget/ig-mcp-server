@@ -24,6 +24,8 @@ import (
 	"strings"
 	"syscall"
 
+	"k8s.io/cli-runtime/pkg/genericclioptions"
+
 	"github.com/inspektor-gadget/ig-mcp-server/pkg/discoverer"
 	"github.com/inspektor-gadget/ig-mcp-server/pkg/gadgetmanager"
 	"github.com/inspektor-gadget/ig-mcp-server/pkg/server"
@@ -35,6 +37,7 @@ var version = "undefined"
 
 var (
 	// MCP server configuration
+	readOnly      = flag.Bool("read-only", false, "run the server in read-only mode")
 	transport     = flag.String("transport", "stdio", fmt.Sprintf("transport to use (%s)", strings.Join(server.SupportedTransports, ", ")))
 	transportHost = flag.String("transport-host", "localhost", "host for the transport")
 	transportPort = flag.String("transport-port", "8080", "port for the transport")
@@ -46,9 +49,26 @@ var (
 	// Server configuration
 	logLevel    = flag.String("log-level", "", "log level (debug, info, warn, error)")
 	versionFlag = flag.Bool("version", false, "print version and exit")
+	// Kubernetes configuration
+	k8sConfig = genericclioptions.NewConfigFlags(false)
 )
 
 var log = slog.Default().With("component", "ig-mcp-server")
+
+func init() {
+	if k8sConfig.KubeConfig != nil {
+		flag.StringVar(k8sConfig.KubeConfig, "kubeconfig", "", "Path to the kubeconfig file to use")
+	}
+	if k8sConfig.Context != nil {
+		flag.StringVar(k8sConfig.Context, "context", "", "The name of the kubeconfig context to use")
+	}
+	if k8sConfig.AuthInfoName != nil {
+		flag.StringVar(k8sConfig.AuthInfoName, "user", "", "The name of the kubeconfig user to use")
+	}
+	if k8sConfig.BearerToken != nil {
+		flag.StringVar(k8sConfig.BearerToken, "token", "", "Bearer token to use for authentication")
+	}
+}
 
 func main() {
 	flag.Parse()
@@ -74,22 +94,19 @@ func main() {
 		slog.SetLogLoggerLevel(l)
 	}
 
-	mgr, err := gadgetmanager.NewGadgetManager(*environment)
+	mgr, err := gadgetmanager.NewGadgetManager(*environment, k8sConfig)
 	if err != nil {
 		logFatal("failed to create gadget manager", "error", err)
 	}
 	defer mgr.Close()
-	registry := tools.NewToolRegistry(mgr, *environment)
+	registry := tools.NewToolRegistry(mgr, *environment, k8sConfig, *readOnly)
 
+	// Use gadgetImages if provided, otherwise use the discoverer to list available images
 	var images []string
-	if gadgetImages != nil && *gadgetImages != "" {
+	if *gadgetImages != "" {
 		images = strings.Split(*gadgetImages, ",")
 	} else {
-		var opts []discoverer.Option
-		if *artifactHubDiscovererOfficial {
-			opts = append(opts, discoverer.WithArtifactHubOfficialOnly(true))
-		}
-		dis, err := discoverer.New(*gadgetDiscoverer, opts...)
+		dis, err := discoverer.New(*gadgetDiscoverer, discoverer.WithArtifactHubOfficialOnly(*artifactHubDiscovererOfficial))
 		if err != nil {
 			logFatal("failed to create gadget discoverer", "error", err)
 		}

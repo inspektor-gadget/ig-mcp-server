@@ -14,7 +14,7 @@ func (r *GadgetToolRegistry) newStopTool() server.ServerTool {
 		mcp.WithString("id",
 			mcp.Description("ID of the running gadget"),
 		),
-		mcp.WithReadOnlyHintAnnotation(false),
+		mcp.WithReadOnlyHintAnnotation(true),
 	}
 	tool := mcp.NewTool(
 		"stop-gadget",

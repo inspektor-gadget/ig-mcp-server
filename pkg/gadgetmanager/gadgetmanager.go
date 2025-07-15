@@ -21,7 +21,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/inspektor-gadget/inspektor-gadget/cmd/kubectl-gadget/utils"
+	"k8s.io/cli-runtime/pkg/genericclioptions"
+
 	"github.com/inspektor-gadget/inspektor-gadget/pkg/datasource"
 	igjson "github.com/inspektor-gadget/inspektor-gadget/pkg/datasource/formatters/json"
 	"github.com/inspektor-gadget/inspektor-gadget/pkg/environment"
@@ -54,12 +55,12 @@ type gadgetManager struct {
 }
 
 // NewGadgetManager creates a new GadgetManager instance.
-func NewGadgetManager(env string) (GadgetManager, error) {
+func NewGadgetManager(env string, k8sConfig *genericclioptions.ConfigFlags) (GadgetManager, error) {
 	var rt igruntime.Runtime
 	var err error
 	switch env {
 	case "kubernetes":
-		rt, err = newGrpcK8sRuntime()
+		rt, err = newGrpcK8sRuntime(k8sConfig)
 	default:
 		return nil, fmt.Errorf("unsupported gadget manager environment: %s", env)
 	}
@@ -74,13 +75,13 @@ func NewGadgetManager(env string) (GadgetManager, error) {
 	}, nil
 }
 
-func newGrpcK8sRuntime() (igruntime.Runtime, error) {
+func newGrpcK8sRuntime(k8sConfig *genericclioptions.ConfigFlags) (igruntime.Runtime, error) {
 	environment.Environment = environment.Kubernetes
 	rt := grpcruntime.New(grpcruntime.WithConnectUsingK8SProxy)
 	if err := rt.Init(nil); err != nil {
 		return nil, fmt.Errorf("initializing grpc gadget manager: %w", err)
 	}
-	config, err := utils.KubernetesConfigFlags.ToRESTConfig()
+	config, err := k8sConfig.ToRESTConfig()
 	if err != nil {
 		return nil, fmt.Errorf("creating RESTConfig: %w", err)
 	}

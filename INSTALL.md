@@ -56,14 +56,24 @@ Create `.vscode/mcp.json` in your project directory:
 
 Key command-line options:
 
-| Option | Description | Default                    |
-|--------|-------------|----------------------------|
-| `-gadget-discoverer` | Gadget discovery method (artifacthub) | -                          |
-| `-gadget-images` | Manual gadget list (e.g., 'trace_dns:latest,trace_open:latest') | -                          |
-| `-artifacthub-official` | Use only official Artifact Hub gadgets | true                       |
-| `-environment` | Target environment | kubernetes                 |
-| `-transport` | Transport protocol | stdio, sse, streamable-http | stdio |
-| `-log-level` | Logging level (debug, info, warn, error) | info                       |
+| Option | Description | Default | Required |
+|--------|-------------|---------|----------|
+| `-gadget-discoverer` | Gadget discoverer to use (artifacthub) | - | One of `-gadget-discoverer` or `-gadget-images` |
+| `-gadget-images` | Comma-separated list of gadget images to use (e.g. 'trace_dns:latest,trace_open:latest') | - | One of `-gadget-discoverer` or `-gadget-images` |
+| `-artifacthub-official` | Use only official gadgets from Artifact Hub | true | No |
+| `-environment` | Environment to use (currently only 'kubernetes' is supported) | kubernetes | No |
+| `-context` | The name of the kubeconfig context to use | - | No |
+| `-kubeconfig` | Path to the kubeconfig file to use | - | No |
+| `-user` | The name of the kubeconfig user to use | - | No |
+| `-token` | Bearer token to use for authentication | - | No |
+| `-read-only` | Run the server in read-only mode | false | No |
+| `-transport` | Transport to use (stdio, sse, streamable-http) | stdio | No |
+| `-transport-host` | Host for the transport | localhost | No |
+| `-transport-port` | Port for the transport | 8080 | No |
+| `-log-level` | Log level (debug, info, warn, error) | - | No |
+| `-version` | Print version and exit | - | No |
+
+**Important**: You must specify either `-gadget-discoverer` or `-gadget-images`. The server will fail to start without one of these options.
 
 For all options:
 
@@ -95,5 +105,3 @@ This should build binary (`ig-mcp-server`) which can be used directly:
 ```
 
 To build it for all the plaforms you can use `make ig-mcp-server-all`.
-
-

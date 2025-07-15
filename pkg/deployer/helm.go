@@ -22,12 +22,12 @@ import (
 	"os"
 	"time"
 
+	"k8s.io/cli-runtime/pkg/genericclioptions"
+
 	"helm.sh/helm/v3/pkg/action"
 	"helm.sh/helm/v3/pkg/chart/loader"
 	"helm.sh/helm/v3/pkg/cli"
 	"helm.sh/helm/v3/pkg/registry"
-
-	"github.com/inspektor-gadget/inspektor-gadget/cmd/kubectl-gadget/utils"
 )
 
 const (
@@ -78,8 +78,11 @@ func (h *helmDeployer) Deploy(ctx context.Context, opts ...RunOption) error {
 	if namespace == "" {
 		namespace = "gadget"
 	}
+	if cfg.k8sConfig == nil {
+		cfg.k8sConfig = genericclioptions.NewConfigFlags(true)
+	}
 
-	actionCfg, err := h.getActionConfig(namespace)
+	actionCfg, err := h.getActionConfig(namespace, cfg.k8sConfig)
 	if err != nil {
 		return fmt.Errorf("get action configuration: %w", err)
 	}
@@ -125,6 +128,9 @@ func (h *helmDeployer) Undeploy(ctx context.Context, opts ...RunOption) error {
 	if namespace == "" {
 		namespace = "gadget"
 	}
+	if cfg.k8sConfig == nil {
+		cfg.k8sConfig = genericclioptions.NewConfigFlags(true)
+	}
 
 	deployed, err := h.IsDeployed(ctx, opts...)
 	if err != nil {
@@ -135,7 +141,7 @@ func (h *helmDeployer) Undeploy(ctx context.Context, opts ...RunOption) error {
 		return ErrNotDeployedByDeployer
 	}
 
-	actionCfg, err := h.getActionConfig(namespace)
+	actionCfg, err := h.getActionConfig(namespace, cfg.k8sConfig)
 	if err != nil {
 		return fmt.Errorf("get action configuration: %w", err)
 	}
@@ -164,8 +170,11 @@ func (h *helmDeployer) IsDeployed(ctx context.Context, opts ...RunOption) (bool,
 	if namespace == "" {
 		namespace = "gadget"
 	}
+	if cfg.k8sConfig == nil {
+		cfg.k8sConfig = genericclioptions.NewConfigFlags(true)
+	}
 
-	actionCfg, err := h.getActionConfig(namespace)
+	actionCfg, err := h.getActionConfig(namespace, cfg.k8sConfig)
 	if err != nil {
 		return false, fmt.Errorf("get action configuration: %w", err)
 	}
@@ -185,10 +194,10 @@ func (h *helmDeployer) IsDeployed(ctx context.Context, opts ...RunOption) (bool,
 	return false, nil
 }
 
-func (h *helmDeployer) getActionConfig(namespace string) (*action.Configuration, error) {
+func (h *helmDeployer) getActionConfig(namespace string, k8sConfig *genericclioptions.ConfigFlags) (*action.Configuration, error) {
 	actionConfig := action.Configuration{RegistryClient: h.registryClient}
 	// Namespace is used to define scope for the Helm installation and driver is used to store release information.
-	if err := actionConfig.Init(utils.KubernetesConfigFlags, namespace, os.Getenv("HELM_DRIVER"), debug); err != nil {
+	if err := actionConfig.Init(k8sConfig, namespace, os.Getenv("HELM_DRIVER"), debug); err != nil {
 		return nil, fmt.Errorf("initialize action configuration: %w", err)
 	}
 	return &actionConfig, nil
