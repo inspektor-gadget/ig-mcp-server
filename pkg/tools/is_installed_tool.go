@@ -24,7 +24,7 @@ import (
 
 func newIsDeployedTool() server.ServerTool {
 	opts := []mcp.ToolOption{
-		mcp.WithDescription("Check if Inspektor Gadget is deployed on the target system. Doesn't rely on if mcp server deployed it or not but checks if the Inspektor Gadget resources are present in the cluster."),
+		mcp.WithDescription("Check if Inspektor Gadget is deployed on the target system. Inspektor Gadget is a tool for observing and debugging Kubernetes/Linux systems using gadgets and gadgets are only registered as MCP tools if Inspektor Gadget is deployed."),
 		mcp.WithReadOnlyHintAnnotation(true),
 	}
 	tool := mcp.NewTool(

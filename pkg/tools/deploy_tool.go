@@ -19,7 +19,6 @@ import (
 	"fmt"
 	"runtime/debug"
 	"strings"
-	"time"
 
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
@@ -94,18 +93,13 @@ func deployHandler(registry *GadgetToolRegistry, images []string) server.ToolHan
 
 		// Register the tool with the registry
 		go func() {
-			// We need to wait to ensure Inspektor Gadget is fully deployed before registering the tools
-			// TODO: Can we do this more elegantly?
-			log.Debug("Waiting for Inspektor Gadget to be fully deployed before registering tools")
-			time.Sleep(10 * time.Second)
-
 			registry.mu.Lock()
 			defer registry.mu.Unlock()
 
 			registry.registerDefaultTools(ctx, images)
 		}()
 
-		return mcp.NewToolResultText("Inspektor Gadget deploy completed successfully"), nil
+		return mcp.NewToolResultText("Inspektor Gadget deploy completed successfully, you might need to wait a few seconds for the tools to be available"), nil
 	}
 }
 

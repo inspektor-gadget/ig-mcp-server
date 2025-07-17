@@ -112,11 +112,11 @@ func (r *GadgetToolRegistry) Prepare(ctx context.Context, images []string) error
 
 func (r *GadgetToolRegistry) registerDefaultTools(ctx context.Context, images []string) {
 	for _, tool := range r.getDefaultTools(ctx, images) {
-		log.Debug("Adding default tool", "name", tool.Tool.Name)
+		log.Debug("Adding tool", "name", tool.Tool.Name)
 		r.tools[tool.Tool.Name] = tool
 	}
 
-	// invoke callback to register default to the server
+	// invoke callback to register default tools to the server
 	for _, callback := range r.callbacks {
 		log.Debug("Invoking tool registry callback", "tools_count", len(r.tools))
 		callback(r.all()...)
@@ -146,7 +146,7 @@ func (r *GadgetToolRegistry) getToolsForEnvironment(ctx context.Context, images 
 		}
 		deployed, _, err := isInspektorGadgetDeployed(ctx)
 		if err != nil || !deployed {
-			log.Warn("Inspektor Gadget is not deployed, skipping fetching gadget tools", "error", err)
+			log.Warn("Inspektor Gadget is not deployed, skip fetching gadget tools", "error", err)
 			return tools
 		}
 	}
@@ -161,7 +161,7 @@ func (r *GadgetToolRegistry) getToolsForEnvironment(ctx context.Context, images 
 }
 
 func (r *GadgetToolRegistry) getGadgetTools(ctx context.Context, images []string) ([]server.ServerTool, error) {
-	sem := make(chan struct{}, 8) // Limit concurrency to 8
+	sem := make(chan struct{}, 10) // Limit concurrency to 10
 	var wg sync.WaitGroup
 	resultsChan := make(chan struct {
 		img  string
@@ -177,6 +177,19 @@ func (r *GadgetToolRegistry) getGadgetTools(ctx context.Context, images []string
 				wg.Done()
 				<-sem
 			}()
+			for i := 0; i < 3; i++ {
+				info, err := r.gadgetMgr.GetInfo(ctx, image)
+				if err == nil {
+					resultsChan <- struct {
+						img  string
+						info *api.GadgetInfo
+						err  error
+					}{img: image, info: info, err: nil}
+					return
+				}
+				log.Warn("Failed to get gadget info, retrying", "image", image, "attempt", i+1, "error", err)
+				time.Sleep(2 * time.Second)
+			}
 			info, err := r.gadgetMgr.GetInfo(ctx, image)
 			resultsChan <- struct {
 				img  string
@@ -207,7 +220,6 @@ func (r *GadgetToolRegistry) getGadgetTools(ctx context.Context, images []string
 			Tool:    t,
 			Handler: h,
 		}
-		log.Debug("Adding tool", "name", t.Name, "image", info.ImageName)
 		tools = append(tools, st)
 	}
 

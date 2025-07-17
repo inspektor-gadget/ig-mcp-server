@@ -22,6 +22,9 @@ import (
 	"os"
 	"time"
 
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
+
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 
 	"helm.sh/helm/v3/pkg/action"
@@ -112,6 +115,12 @@ func (h *helmDeployer) Deploy(ctx context.Context, opts ...RunOption) error {
 	if err != nil {
 		return fmt.Errorf("run install action: %w", err)
 	}
+
+	err = waitForDaemonSetRollout(cfg.k8sConfig, namespace, "gadget", 60*time.Second)
+	if err != nil {
+		return fmt.Errorf("wait for DaemonSet rollout: %w", err)
+	}
+
 	log.Debug("Successfully deployed Inspektor Gadget", "releaseName", release.Name, "namespace", release.Namespace)
 
 	return nil
@@ -205,4 +214,45 @@ func (h *helmDeployer) getActionConfig(namespace string, k8sConfig *genericcliop
 
 func debug(format string, args ...any) {
 	log.Debug(fmt.Sprintf(format, args...))
+}
+
+func waitForDaemonSetRollout(k8sConfig *genericclioptions.ConfigFlags, namespace, name string, timeout time.Duration) error {
+	ticker := time.NewTicker(5 * time.Second)
+	defer ticker.Stop()
+
+	timeoutChan := time.After(timeout)
+
+	rc, err := k8sConfig.ToRESTConfig()
+	if err != nil {
+		return fmt.Errorf("create REST config: %w", err)
+	}
+	clientset, err := kubernetes.NewForConfig(rc)
+	if err != nil {
+		return fmt.Errorf("create Kubernetes clientset: %w", err)
+	}
+
+	for {
+		select {
+		case <-timeoutChan:
+			return fmt.Errorf("timeout waiting for DaemonSet %s rollout", name)
+
+		case <-ticker.C:
+			ds, err := clientset.AppsV1().DaemonSets(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+			if err != nil {
+				return fmt.Errorf("error getting DaemonSet: %w", err)
+			}
+
+			desired := ds.Status.DesiredNumberScheduled
+			ready := ds.Status.NumberReady
+			updated := ds.Status.UpdatedNumberScheduled
+			available := ds.Status.NumberAvailable
+
+			log.Debug("DaemonSet status", "desired", desired, "ready", ready, "updated", updated, "available", available)
+
+			if desired == updated && desired == ready && desired == available {
+				log.Debug("DaemonSet rollout completed", "name", name, "namespace", namespace)
+				return nil
+			}
+		}
+	}
 }
