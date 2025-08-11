@@ -19,6 +19,7 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"fmt"
+	"sync"
 	"time"
 
 	"k8s.io/cli-runtime/pkg/genericclioptions"
@@ -51,7 +52,8 @@ type GadgetManager interface {
 }
 
 type gadgetManager struct {
-	runtime igruntime.Runtime
+	runtime     igruntime.Runtime
+	formatterMu sync.Mutex
 }
 
 // NewGadgetManager creates a new GadgetManager instance.
@@ -106,6 +108,8 @@ func (g *gadgetManager) Run(image string, params map[string]string, timeout time
 				}
 
 				d.Subscribe(func(source datasource.DataSource, data datasource.Data) error {
+					g.formatterMu.Lock()
+					defer g.formatterMu.Unlock()
 					jsonData := jsonFormatter.Marshal(data)
 					jsonBuffer = append(jsonBuffer, jsonData...)
 					jsonBuffer = append(jsonBuffer, '\n')
