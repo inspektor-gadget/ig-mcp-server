@@ -179,6 +179,8 @@ func (g *gadgetManager) Results(id string) (string, error) {
 				}
 
 				d.Subscribe(func(source datasource.DataSource, data datasource.Data) error {
+					g.formatterMu.Lock()
+					defer g.formatterMu.Unlock()
 					jsonData := jsonFormatter.Marshal(data)
 					jsonBuffer = append(jsonBuffer, jsonData...)
 					jsonBuffer = append(jsonBuffer, '\n')
