@@ -44,7 +44,7 @@ var (
 	// Inspektor Gadget configuration
 	environment                   = flag.String("environment", "kubernetes", "environment to use (currently only 'kubernetes' is supported)")
 	gadgetImages                  = flag.String("gadget-images", "", "comma-separated list of gadget images to use (e.g. 'trace_dns:latest,trace_open:latest')")
-	gadgetDiscoverer              = flag.String("gadget-discoverer", "", "gadget discoverer to use (artifacthub)")
+	gadgetDiscoverer              = flag.String("gadget-discoverer", "artifacthub", "gadget discoverer to use (artifacthub)")
 	artifactHubDiscovererOfficial = flag.Bool("artifacthub-official", true, "use only official gadgets from Artifact Hub")
 	// Server configuration
 	logLevel    = flag.String("log-level", "", "log level (debug, info, warn, error)")
@@ -78,10 +78,6 @@ func main() {
 		os.Exit(0)
 	}
 
-	if *gadgetDiscoverer == "" && *gadgetImages == "" {
-		logFatal("either -gadget-images or -gadget-discoverer must be specified")
-	}
-
 	if *environment != "kubernetes" {
 		logFatal("unsupported environment, only 'kubernetes' is supported")
 	}
@@ -94,31 +90,25 @@ func main() {
 		slog.SetLogLoggerLevel(l)
 	}
 
+	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer stop()
+
 	mgr, err := gadgetmanager.NewGadgetManager(*environment, k8sConfig)
 	if err != nil {
 		logFatal("failed to create gadget manager", "error", err)
 	}
 	defer mgr.Close()
-	registry := tools.NewToolRegistry(mgr, *environment, k8sConfig, *readOnly)
-
-	// Use gadgetImages if provided, otherwise use the discoverer to list available images
-	var images []string
-	if *gadgetImages != "" {
-		images = strings.Split(*gadgetImages, ",")
-	} else {
-		dis, err := discoverer.New(*gadgetDiscoverer, discoverer.WithArtifactHubOfficialOnly(*artifactHubDiscovererOfficial))
+	var dis discoverer.Discoverer
+	if *gadgetDiscoverer != "" {
+		dis, err = discoverer.New(*gadgetDiscoverer, discoverer.WithArtifactHubOfficialOnly(*artifactHubDiscovererOfficial))
 		if err != nil {
 			logFatal("failed to create gadget discoverer", "error", err)
 		}
-		images, err = dis.ListImages()
-		if err != nil {
-			logFatal("failed to list gadget images", "error", err)
-		}
 	}
-
-	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
-	defer stop()
+	registry := tools.NewToolRegistry(mgr, *environment, k8sConfig, dis, *readOnly)
 	srv := server.New(version, registry)
+
+	images := strings.Split(*gadgetImages, ",")
 	if err = registry.Prepare(ctx, images); err != nil {
 		logFatal("failed to prepare tool registry", "error", err)
 	}

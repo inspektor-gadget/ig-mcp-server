@@ -24,6 +24,7 @@ import (
 	"github.com/mark3labs/mcp-go/server"
 
 	"github.com/inspektor-gadget/ig-mcp-server/pkg/deployer"
+	"github.com/inspektor-gadget/ig-mcp-server/pkg/discoverer"
 )
 
 const (
@@ -32,7 +33,7 @@ const (
 	defaultNamespace   = "gadget"
 )
 
-func newDeployTool(registry *GadgetToolRegistry, images []string) server.ServerTool {
+func newDeployTool(registry *GadgetToolRegistry, gadgets []discoverer.Gadget) server.ServerTool {
 	opts := []mcp.ToolOption{
 		mcp.WithDescription("Deploy Inspektor Gadget on the target system"),
 		mcp.WithReadOnlyHintAnnotation(false),
@@ -55,11 +56,11 @@ func newDeployTool(registry *GadgetToolRegistry, images []string) server.ServerT
 
 	return server.ServerTool{
 		Tool:    tool,
-		Handler: deployHandler(registry, images),
+		Handler: deployHandler(registry, gadgets),
 	}
 }
 
-func deployHandler(registry *GadgetToolRegistry, images []string) server.ToolHandlerFunc {
+func deployHandler(registry *GadgetToolRegistry, gadgets []discoverer.Gadget) server.ToolHandlerFunc {
 	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		var err error
 		version := request.GetString("chart_version", "")
@@ -96,7 +97,7 @@ func deployHandler(registry *GadgetToolRegistry, images []string) server.ToolHan
 			registry.mu.Lock()
 			defer registry.mu.Unlock()
 
-			registry.registerDefaultTools(ctx, images)
+			registry.registerDefaultTools(ctx, gadgets)
 		}()
 
 		return mcp.NewToolResultText("Inspektor Gadget deploy completed successfully, you might need to wait a few seconds for the tools to be available"), nil

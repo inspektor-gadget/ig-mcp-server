@@ -32,10 +32,15 @@ type Config struct {
 	}
 }
 
+type Gadget struct {
+	Image       string
+	Description string
+}
+
 // Discoverer is used to discover available gadgets from various sources.
 type Discoverer interface {
-	// ListImages returns a list of available gadget images.
-	ListImages() ([]string, error)
+	// ListGadgets returns a list of available gadgets
+	ListGadgets() ([]Gadget, error)
 }
 
 func New(source string, opts ...Option) (Discoverer, error) {
@@ -55,4 +60,18 @@ func WithArtifactHubOfficialOnly(officialOnly bool) Option {
 	return func(cfg *Config) {
 		cfg.Artifacthub.OfficialOnly = officialOnly
 	}
+}
+
+func FromImages(images []string) []Gadget {
+	gadgets := make([]Gadget, 0, len(images))
+	for _, img := range images {
+		if img == "" {
+			continue
+		}
+		gadgets = append(gadgets, Gadget{
+			Image:       img,
+			Description: fmt.Sprintf("Tool for image %s\n\nComplete description will be available once Inspektor Gadget is deployed.", img),
+		})
+	}
+	return gadgets
 }
