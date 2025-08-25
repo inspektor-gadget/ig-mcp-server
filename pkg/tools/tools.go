@@ -26,6 +26,7 @@ import (
 	"text/template"
 	"time"
 
+	"github.com/distribution/reference"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 
 	"github.com/inspektor-gadget/inspektor-gadget/cmd/kubectl-gadget/utils"
@@ -146,8 +147,7 @@ func (r *GadgetToolRegistry) getToolsForEnvironment(ctx context.Context, images 
 		}
 		deployed, _, err := isInspektorGadgetDeployed(ctx)
 		if err != nil || !deployed {
-			log.Warn("Inspektor Gadget is not deployed, skip fetching gadget tools", "error", err)
-			return tools
+			return append(tools, r.getMinimalGadgetTools(images)...)
 		}
 	}
 
@@ -158,6 +158,43 @@ func (r *GadgetToolRegistry) getToolsForEnvironment(ctx context.Context, images 
 	}
 
 	return append(tools, gadgetTools...)
+}
+
+func (r *GadgetToolRegistry) getMinimalGadgetTools(images []string) []server.ServerTool {
+	var tools []server.ServerTool
+	for _, img := range images {
+		n, err := extractNameFrom(img)
+		if err != nil {
+			log.Warn("Failed to extract tool name from image", "image", img, "error", err)
+			continue
+		}
+
+		t := mcp.NewTool(
+			n,
+			mcp.WithDescription(fmt.Sprintf("Tool for gadget %s", img)),
+		)
+
+		h := func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+			return mcp.NewToolResultError("Inspektor Gadget is not deployed, please deploy it first using the deploy_inspektor_gadget tool."), nil
+		}
+		tools = append(tools, server.ServerTool{
+			Tool:    t,
+			Handler: h,
+		})
+	}
+	return tools
+}
+
+func extractNameFrom(image string) (string, error) {
+	ref, err := reference.ParseNormalizedNamed(image)
+	if err != nil {
+		return "", fmt.Errorf("parsing image reference %s: %w", image, err)
+	}
+	parts := strings.Split(reference.TrimNamed(ref).Name(), "/")
+	if len(parts) == 0 {
+		return "", fmt.Errorf("invalid image reference: %s", image)
+	}
+	return normalizeToolName(parts[len(parts)-1]), nil
 }
 
 func (r *GadgetToolRegistry) getGadgetTools(ctx context.Context, images []string) ([]server.ServerTool, error) {
