@@ -108,7 +108,10 @@ func main() {
 	registry := tools.NewToolRegistry(mgr, *environment, k8sConfig, dis, *readOnly)
 	srv := server.New(version, registry)
 
-	images := strings.Split(*gadgetImages, ",")
+	var images []string
+	if gadgetImages != nil && *gadgetImages != "" {
+		images = strings.Split(*gadgetImages, ",")
+	}
 	if err = registry.Prepare(ctx, images); err != nil {
 		logFatal("failed to prepare tool registry", "error", err)
 	}

@@ -70,7 +70,7 @@ func FromImages(images []string) []Gadget {
 		}
 		gadgets = append(gadgets, Gadget{
 			Image:       img,
-			Description: fmt.Sprintf("Tool for image %s\n\nComplete description will be available once Inspektor Gadget is deployed.", img),
+			Description: fmt.Sprintf("Tool for image %q, complete description will be available once Inspektor Gadget is deployed", img),
 		})
 	}
 	return gadgets
