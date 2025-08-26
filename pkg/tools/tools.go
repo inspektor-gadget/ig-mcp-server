@@ -26,8 +26,7 @@ import (
 	"text/template"
 	"time"
 
-	"k8s.io/cli-runtime/pkg/genericclioptions"
-
+	"github.com/distribution/reference"
 	"github.com/inspektor-gadget/inspektor-gadget/cmd/kubectl-gadget/utils"
 	"github.com/inspektor-gadget/inspektor-gadget/pkg/gadget-service/api"
 	metadatav1 "github.com/inspektor-gadget/inspektor-gadget/pkg/metadata/v1"
@@ -35,8 +34,10 @@ import (
 	"github.com/mark3labs/mcp-go/server"
 	"gopkg.in/yaml.v3"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/client-go/kubernetes"
 
+	"github.com/inspektor-gadget/ig-mcp-server/pkg/discoverer"
 	"github.com/inspektor-gadget/ig-mcp-server/pkg/gadgetmanager"
 )
 
@@ -56,9 +57,10 @@ type GadgetToolRegistry struct {
 	callbacks []ToolRegistryCallback
 	readonly  bool
 
-	gadgetMgr gadgetmanager.GadgetManager
-	k8sConfig *genericclioptions.ConfigFlags
-	env       string
+	gadgetMgr  gadgetmanager.GadgetManager
+	k8sConfig  *genericclioptions.ConfigFlags
+	discoverer discoverer.Discoverer
+	env        string
 }
 
 type ToolData struct {
@@ -75,13 +77,14 @@ type FieldData struct {
 }
 
 // NewToolRegistry creates a new GadgetToolRegistry instance.
-func NewToolRegistry(manager gadgetmanager.GadgetManager, env string, k8sConfig *genericclioptions.ConfigFlags, readonly bool) *GadgetToolRegistry {
+func NewToolRegistry(manager gadgetmanager.GadgetManager, env string, k8sConfig *genericclioptions.ConfigFlags, discoverer discoverer.Discoverer, readonly bool) *GadgetToolRegistry {
 	return &GadgetToolRegistry{
-		tools:     make(map[string]server.ServerTool),
-		gadgetMgr: manager,
-		env:       env,
-		k8sConfig: k8sConfig,
-		readonly:  readonly,
+		tools:      make(map[string]server.ServerTool),
+		gadgetMgr:  manager,
+		env:        env,
+		k8sConfig:  k8sConfig,
+		discoverer: discoverer,
+		readonly:   readonly,
 	}
 }
 
@@ -105,13 +108,23 @@ func (r *GadgetToolRegistry) Prepare(ctx context.Context, images []string) error
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	r.registerDefaultTools(ctx, images)
+	gadgets := discoverer.FromImages(images)
+
+	var err error
+	if len(gadgets) == 0 && r.discoverer != nil {
+		gadgets, err = r.discoverer.ListGadgets()
+		if err != nil {
+			return fmt.Errorf("listing gadgets from discoverer: %w", err)
+		}
+	}
+
+	r.registerDefaultTools(ctx, gadgets)
 
 	return nil
 }
 
-func (r *GadgetToolRegistry) registerDefaultTools(ctx context.Context, images []string) {
-	for _, tool := range r.getDefaultTools(ctx, images) {
+func (r *GadgetToolRegistry) registerDefaultTools(ctx context.Context, gadgets []discoverer.Gadget) {
+	for _, tool := range r.getDefaultTools(ctx, gadgets) {
 		log.Debug("Adding tool", "name", tool.Tool.Name)
 		r.tools[tool.Tool.Name] = tool
 	}
@@ -123,7 +136,7 @@ func (r *GadgetToolRegistry) registerDefaultTools(ctx context.Context, images []
 	}
 }
 
-func (r *GadgetToolRegistry) getDefaultTools(ctx context.Context, images []string) []server.ServerTool {
+func (r *GadgetToolRegistry) getDefaultTools(ctx context.Context, gadgets []discoverer.Gadget) []server.ServerTool {
 	tools := []server.ServerTool{
 		r.newStopTool(),
 		r.newGetResultsTool(),
@@ -131,27 +144,26 @@ func (r *GadgetToolRegistry) getDefaultTools(ctx context.Context, images []strin
 	}
 
 	// Add environment-specific tools
-	tools = append(tools, r.getToolsForEnvironment(ctx, images)...)
+	tools = append(tools, r.getToolsForEnvironment(ctx, gadgets)...)
 
 	return tools
 }
 
-func (r *GadgetToolRegistry) getToolsForEnvironment(ctx context.Context, images []string) []server.ServerTool {
+func (r *GadgetToolRegistry) getToolsForEnvironment(ctx context.Context, gadgets []discoverer.Gadget) []server.ServerTool {
 	var tools []server.ServerTool
 	if r.env == "kubernetes" {
 		tools = []server.ServerTool{
-			newDeployTool(r, images),
+			newDeployTool(r, gadgets),
 			newUndeployTool(r),
 			newIsDeployedTool(),
 		}
 		deployed, _, err := isInspektorGadgetDeployed(ctx)
 		if err != nil || !deployed {
-			log.Warn("Inspektor Gadget is not deployed, skip fetching gadget tools", "error", err)
-			return tools
+			return append(tools, r.getMinimalGadgetTools(gadgets)...)
 		}
 	}
 
-	gadgetTools, err := r.getGadgetTools(ctx, images)
+	gadgetTools, err := r.getGadgetTools(ctx, gadgets)
 	if err != nil {
 		log.Warn("Failed to get gadget tools", "error", err)
 		return tools
@@ -160,16 +172,53 @@ func (r *GadgetToolRegistry) getToolsForEnvironment(ctx context.Context, images 
 	return append(tools, gadgetTools...)
 }
 
-func (r *GadgetToolRegistry) getGadgetTools(ctx context.Context, images []string) ([]server.ServerTool, error) {
+func (r *GadgetToolRegistry) getMinimalGadgetTools(gadgets []discoverer.Gadget) []server.ServerTool {
+	var tools []server.ServerTool
+	for _, g := range gadgets {
+		n, err := extractNameFrom(g.Image)
+		if err != nil {
+			log.Warn("Failed to extract tool name from image", "image", g.Image, "error", err)
+			continue
+		}
+
+		t := mcp.NewTool(
+			n,
+			mcp.WithDescription(g.Description),
+		)
+
+		h := func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+			return mcp.NewToolResultError("Inspektor Gadget is not deployed, please deploy it first using the deploy_inspektor_gadget tool."), nil
+		}
+		tools = append(tools, server.ServerTool{
+			Tool:    t,
+			Handler: h,
+		})
+	}
+	return tools
+}
+
+func extractNameFrom(image string) (string, error) {
+	ref, err := reference.ParseNormalizedNamed(image)
+	if err != nil {
+		return "", fmt.Errorf("parsing image reference %s: %w", image, err)
+	}
+	parts := strings.Split(reference.TrimNamed(ref).Name(), "/")
+	if len(parts) == 0 {
+		return "", fmt.Errorf("invalid image reference: %s", image)
+	}
+	return normalizeToolName(parts[len(parts)-1]), nil
+}
+
+func (r *GadgetToolRegistry) getGadgetTools(ctx context.Context, gadgets []discoverer.Gadget) ([]server.ServerTool, error) {
 	sem := make(chan struct{}, 10) // Limit concurrency to 10
 	var wg sync.WaitGroup
 	resultsChan := make(chan struct {
 		img  string
 		info *api.GadgetInfo
 		err  error
-	}, len(images))
+	}, len(gadgets))
 
-	for _, img := range images {
+	for _, g := range gadgets {
 		wg.Add(1)
 		sem <- struct{}{}
 		go func(image string) {
@@ -195,8 +244,8 @@ func (r *GadgetToolRegistry) getGadgetTools(ctx context.Context, images []string
 				img  string
 				info *api.GadgetInfo
 				err  error
-			}{img: img, info: info, err: err}
-		}(img)
+			}{img: g.Image, info: info, err: err}
+		}(g.Image)
 	}
 
 	go func() {

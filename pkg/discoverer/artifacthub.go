@@ -53,13 +53,12 @@ func NewArtifactHubDiscoverer(cfg Config) Discoverer {
 	}
 }
 
-func (d *artifactHubDiscoverer) ListImages() ([]string, error) {
+func (d *artifactHubDiscoverer) ListGadgets() ([]Gadget, error) {
+	var gadgets []Gadget
 	packages, err := d.listPackages()
 	if err != nil {
 		return nil, fmt.Errorf("listing packages from Artifact Hub: %w", err)
 	}
-
-	var images []string
 	for _, pkg := range packages.Packages {
 		if d.officialOnly && !pkg.Official {
 			log.Debug("skipping non-official package", "package", pkg.NormalizedName)
@@ -70,9 +69,12 @@ func (d *artifactHubDiscoverer) ListImages() ([]string, error) {
 			log.Warn("failed to get image for package", "package", pkg.NormalizedName, "error", err)
 			continue
 		}
-		images = append(images, image)
+		gadgets = append(gadgets, Gadget{
+			Image:       image,
+			Description: pkg.Description,
+		})
 	}
-	return images, nil
+	return gadgets, nil
 }
 
 func (d *artifactHubDiscoverer) listPackages() (*ArtifacthubPackages, error) {
