@@ -1,0 +1,159 @@
+{
+  "packages": [
+    {
+      "normalized_name": "deadlock",
+      "description": "use uprobe to trace pthread_mutex_lock and pthread_mutex_unlock in libc.so and detect potential deadlocks",
+      "container_image": "ghcr.io/inspektor-gadget/gadget/deadlock:latest"
+    },
+    {
+      "normalized_name": "advise-seccomp",
+      "description": "Suggest a seccomp profile",
+      "container_image": "ghcr.io/inspektor-gadget/gadget/advise_seccomp:latest"
+    },
+    {
+      "normalized_name": "audit-seccomp",
+      "description": "Audit syscalls according to the seccomp profile",
+      "container_image": "ghcr.io/inspektor-gadget/gadget/audit_seccomp:latest"
+    },
+    {
+      "normalized_name": "bpfstats",
+      "description": "Get memory and CPU usage of eBPF programs and Gadgets",
+      "container_image": "ghcr.io/inspektor-gadget/gadget/bpfstats:latest"
+    },
+    {
+      "normalized_name": "fdpass",
+      "description": "Trace file descriptor passing via a unix socket (SCM_RIGHTS)",
+      "container_image": "ghcr.io/inspektor-gadget/gadget/fdpass:latest"
+    },
+    {
+      "normalized_name": "fsnotify",
+      "description": "enrich inotify or fanotify events",
+      "container_image": "ghcr.io/inspektor-gadget/gadget/fsnotify:latest"
+    },
+    {
+      "normalized_name": "profile-blockio",
+      "description": "Profile block I/O operations",
+      "container_image": "ghcr.io/inspektor-gadget/gadget/profile_blockio:latest"
+    },
+    {
+      "normalized_name": "profile-qdisc-latency",
+      "description": "profile network scheduler latency",
+      "container_image": "ghcr.io/inspektor-gadget/gadget/profile_qdisc_latency:latest"
+    },
+    {
+      "normalized_name": "profile-tcprtt",
+      "description": "Profile TCP connections' Round-Trip Time (RTT)",
+      "container_image": "ghcr.io/inspektor-gadget/gadget/profile_tcprtt:latest"
+    },
+    {
+      "normalized_name": "snapshot-process",
+      "description": "Show running processes",
+      "container_image": "ghcr.io/inspektor-gadget/gadget/snapshot_process:latest"
+    },
+    {
+      "normalized_name": "snapshot-socket",
+      "description": "Show TCP and UDP sockets",
+      "container_image": "ghcr.io/inspektor-gadget/gadget/snapshot_socket:latest"
+    },
+    {
+      "normalized_name": "top-blockio",
+      "description": "Periodically report input/output block device activity. This gadget requires Linux Kernel Version 6.5+",
+      "container_image": "ghcr.io/inspektor-gadget/gadget/top_blockio:latest"
+    },
+    {
+      "normalized_name": "top-file",
+      "description": "Periodically report read/write activity by file",
+      "container_image": "ghcr.io/inspektor-gadget/gadget/top_file:latest"
+    },
+    {
+      "normalized_name": "top-tcp",
+      "description": "Periodically report tcp send receive activity by connection",
+      "container_image": "ghcr.io/inspektor-gadget/gadget/top_tcp:latest"
+    },
+    {
+      "normalized_name": "trace-bind",
+      "description": "trace stream socket binding syscalls",
+      "container_image": "ghcr.io/inspektor-gadget/gadget/trace_bind:latest"
+    },
+    {
+      "normalized_name": "trace-capabilities",
+      "description": "trace security capability checks",
+      "container_image": "ghcr.io/inspektor-gadget/gadget/trace_capabilities:latest"
+    },
+    {
+      "normalized_name": "trace-dns",
+      "description": "trace dns requests and responses",
+      "container_image": "ghcr.io/inspektor-gadget/gadget/trace_dns:latest"
+    },
+    {
+      "normalized_name": "trace-exec",
+      "description": "trace process executions",
+      "container_image": "ghcr.io/inspektor-gadget/gadget/trace_exec:latest"
+    },
+    {
+      "normalized_name": "trace-fsslower",
+      "description": "Trace open, read, write and fsync operations slower than a threshold",
+      "container_image": "ghcr.io/inspektor-gadget/gadget/trace_fsslower:latest"
+    },
+    {
+      "normalized_name": "traceloop",
+      "description": "syscalls flight recorder",
+      "container_image": "ghcr.io/inspektor-gadget/gadget/traceloop:latest"
+    },
+    {
+      "normalized_name": "trace-lsm",
+      "description": "a strace for LSM tracepoints",
+      "container_image": "ghcr.io/inspektor-gadget/gadget/trace_lsm:latest"
+    },
+    {
+      "normalized_name": "trace-malloc",
+      "description": "use uprobe to trace malloc and free in libc.so",
+      "container_image": "ghcr.io/inspektor-gadget/gadget/trace_malloc:latest"
+    },
+    {
+      "normalized_name": "trace-mount",
+      "description": "trace mount syscalls",
+      "container_image": "ghcr.io/inspektor-gadget/gadget/trace_mount:latest"
+    },
+    {
+      "normalized_name": "trace-oomkill",
+      "description": "trace OOM killer",
+      "container_image": "ghcr.io/inspektor-gadget/gadget/trace_oomkill:latest"
+    },
+    {
+      "normalized_name": "trace-open",
+      "description": "trace open files",
+      "container_image": "ghcr.io/inspektor-gadget/gadget/trace_open:latest"
+    },
+    {
+      "normalized_name": "trace-signal",
+      "description": "trace signal",
+      "container_image": "ghcr.io/inspektor-gadget/gadget/trace_signal:latest"
+    },
+    {
+      "normalized_name": "trace-sni",
+      "description": "trace sni",
+      "container_image": "ghcr.io/inspektor-gadget/gadget/trace_sni:latest"
+    },
+    {
+      "normalized_name": "trace-ssl",
+      "description": "use uprobe to capture data on read/recv or write/send functions of OpenSSL, GnuTLS, NSS and Libcrypto",
+      "container_image": "ghcr.io/inspektor-gadget/gadget/trace_ssl:latest"
+    },
+    {
+      "normalized_name": "trace-tcp",
+      "description": "monitor connect, accept and close events of TCP connections",
+      "container_image": "ghcr.io/inspektor-gadget/gadget/trace_tcp:latest"
+    },
+    {
+      "normalized_name": "trace-tcpdrop",
+      "description": "trace TCP packets dropped by the kernel",
+      "container_image": "ghcr.io/inspektor-gadget/gadget/trace_tcpdrop:latest"
+    },
+    {
+      "normalized_name": "trace-tcpretrans",
+      "description": "trace TCP retransmissions",
+      "container_image": "ghcr.io/inspektor-gadget/gadget/trace_tcpretrans:latest"
+    }
+  ]
+}

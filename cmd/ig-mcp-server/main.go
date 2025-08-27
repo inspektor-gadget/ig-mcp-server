@@ -97,7 +97,6 @@ func main() {
 	if err != nil {
 		logFatal("failed to create gadget manager", "error", err)
 	}
-	defer mgr.Close()
 	var dis discoverer.Discoverer
 	if *gadgetDiscoverer != "" {
 		dis, err = discoverer.New(*gadgetDiscoverer, discoverer.WithArtifactHubOfficialOnly(*artifactHubDiscovererOfficial))
