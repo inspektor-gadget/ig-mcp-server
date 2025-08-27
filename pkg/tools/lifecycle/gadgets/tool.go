@@ -18,7 +18,7 @@ func lifecycleTool() mcp.Tool {
 	return mcp.NewTool(
 		toolName,
 		mcp.WithDescription("Manage running gadgets"),
-		mcp.WithReadOnlyHintAnnotation(false),
+		mcp.WithReadOnlyHintAnnotation(true),
 		mcp.WithString("action",
 			mcp.Description("Lifecycle action to perform: "+
 				actionListGadgets+"(list running gadgets), "+

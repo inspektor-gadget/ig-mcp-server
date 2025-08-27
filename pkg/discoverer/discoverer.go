@@ -18,6 +18,8 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+
+	"github.com/distribution/reference"
 )
 
 var ErrUnknownSource = errors.New("unknown source")
@@ -68,6 +70,11 @@ func FromImages(images []string) []Gadget {
 	gadgets := make([]Gadget, 0, len(images))
 	for _, img := range images {
 		if img == "" {
+			continue
+		}
+		_, err := reference.ParseNormalizedNamed(img)
+		if err != nil {
+			log.Warn("Skipping invalid image", "image", img, "error", err)
 			continue
 		}
 		gadgets = append(gadgets, Gadget{
