@@ -19,21 +19,23 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
+	"github.com/inspektor-gadget/inspektor-gadget/pkg/environment"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 
 	"github.com/inspektor-gadget/inspektor-gadget/pkg/datasource"
 	igjson "github.com/inspektor-gadget/inspektor-gadget/pkg/datasource/formatters/json"
-	"github.com/inspektor-gadget/inspektor-gadget/pkg/environment"
 	gadgetcontext "github.com/inspektor-gadget/inspektor-gadget/pkg/gadget-context"
 	"github.com/inspektor-gadget/inspektor-gadget/pkg/gadget-service/api"
 	"github.com/inspektor-gadget/inspektor-gadget/pkg/operators"
 	"github.com/inspektor-gadget/inspektor-gadget/pkg/operators/simple"
-	igruntime "github.com/inspektor-gadget/inspektor-gadget/pkg/runtime"
 	grpcruntime "github.com/inspektor-gadget/inspektor-gadget/pkg/runtime/grpc"
 )
+
+const maxResultLen = 64 * 1024 // 64kb
 
 // GadgetManager is an interface for managing gadgets.
 type GadgetManager interface {
@@ -41,54 +43,44 @@ type GadgetManager interface {
 	Run(image string, params map[string]string, timeout time.Duration) (string, error)
 	// RunDetached starts a gadget with the given image and parameters in the background, returning its ID.
 	RunDetached(image string, params map[string]string) (string, error)
-	// Results returns the stored result buffer from a gadget
-	Results(id string) (string, error)
+	// GetResults returns the stored result buffer from a gadget
+	GetResults(id string) (string, error)
 	// Stop stops a gadget
 	Stop(id string) error
 	// GetInfo retrieves information about a gadget image via runtime.
 	GetInfo(ctx context.Context, image string) (*api.GadgetInfo, error)
-	// Close closes the gadget manager and releases any resources.
-	Close() error
+	// GetVersion retrieves the version of Inspektor Gadget installed in the cluster
+	GetVersion() (string, error)
+	// ListGadgets lists all running gadget instances
+	ListGadgets(ctx context.Context) ([]*GadgetInstance, error)
+}
+
+// GadgetInstance represents a running gadget instance
+type GadgetInstance struct {
+	ID          string `json:"id"`
+	GadgetImage string `json:"gadgetImage"`
+	Params      string `json:"params"`
+	CreatedBy   string `json:"createdBy,omitempty"`
+	StartedAt   string `json:"startedAt,omitempty"`
 }
 
 type gadgetManager struct {
-	runtime     igruntime.Runtime
+	k8sConfig   *genericclioptions.ConfigFlags
 	formatterMu sync.Mutex
+	env         string
 }
 
 // NewGadgetManager creates a new GadgetManager instance.
 func NewGadgetManager(env string, k8sConfig *genericclioptions.ConfigFlags) (GadgetManager, error) {
-	var rt igruntime.Runtime
-	var err error
-	switch env {
-	case "kubernetes":
-		rt, err = newGrpcK8sRuntime(k8sConfig)
-	default:
+	if env != "kubernetes" {
 		return nil, fmt.Errorf("unsupported gadget manager environment: %s", env)
 	}
-	if err != nil {
-		return nil, fmt.Errorf("creating gadget manager runtime: %w", err)
-	}
-	if err := rt.Init(nil); err != nil {
-		return nil, fmt.Errorf("initializing gadget manager runtime: %w", err)
-	}
-	return &gadgetManager{
-		runtime: rt,
-	}, nil
-}
-
-func newGrpcK8sRuntime(k8sConfig *genericclioptions.ConfigFlags) (igruntime.Runtime, error) {
+	// Set the environment to Kubernetes for the gadget runtime
 	environment.Environment = environment.Kubernetes
-	rt := grpcruntime.New(grpcruntime.WithConnectUsingK8SProxy)
-	if err := rt.Init(nil); err != nil {
-		return nil, fmt.Errorf("initializing grpc gadget manager: %w", err)
-	}
-	config, err := k8sConfig.ToRESTConfig()
-	if err != nil {
-		return nil, fmt.Errorf("creating RESTConfig: %w", err)
-	}
-	rt.SetRestConfig(config)
-	return rt, nil
+	return &gadgetManager{
+		k8sConfig: k8sConfig,
+		env:       env,
+	}, nil
 }
 
 func (g *gadgetManager) Run(image string, params map[string]string, timeout time.Duration) (string, error) {
@@ -129,10 +121,15 @@ func (g *gadgetManager) Run(image string, params map[string]string, timeout time
 		gadgetcontext.WithTimeout(timeout),
 	)
 
-	if err := g.runtime.RunGadget(gadgetCtx, nil, params); err != nil {
+	runtime, err := g.getRuntime()
+	if err != nil {
+		return "", fmt.Errorf("getting runtime: %w", err)
+	}
+
+	if err = runtime.RunGadget(gadgetCtx, runtime.ParamDescs().ToParams(), params); err != nil {
 		return "", fmt.Errorf("running gadget: %w", err)
 	}
-	return string(jsonBuffer), nil
+	return truncateResults(string(jsonBuffer), false), nil
 }
 
 func (g *gadgetManager) RunDetached(image string, params map[string]string) (string, error) {
@@ -140,29 +137,38 @@ func (g *gadgetManager) RunDetached(image string, params map[string]string) (str
 		context.Background(),
 		image,
 	)
+	runtime, err := g.getRuntime()
+	if err != nil {
+		return "", fmt.Errorf("getting runtime: %w", err)
+	}
 
-	p := g.runtime.ParamDescs().ToParams()
+	p := runtime.ParamDescs().ToParams()
 
 	newID := make([]byte, 16)
 	rand.Read(newID)
 	idString := hex.EncodeToString(newID)
 
+	p.Set(grpcruntime.ParamTags, "createdBy=ig-mcp-server")
 	p.Set(grpcruntime.ParamID, idString)
 	p.Set(grpcruntime.ParamDetach, "true")
-	if err := g.runtime.RunGadget(gadgetCtx, p, params); err != nil {
+	if err = runtime.RunGadget(gadgetCtx, p, params); err != nil {
 		return "", fmt.Errorf("running gadget: %w", err)
 	}
 	return idString, nil
 }
 
 func (g *gadgetManager) Stop(id string) error {
-	if err := g.runtime.(*grpcruntime.Runtime).RemoveGadgetInstance(context.Background(), g.runtime.ParamDescs().ToParams(), id); err != nil {
+	runtime, err := g.getRuntime()
+	if err != nil {
+		return fmt.Errorf("getting runtime: %w", err)
+	}
+	if err = runtime.RemoveGadgetInstance(context.Background(), runtime.ParamDescs().ToParams(), id); err != nil {
 		return fmt.Errorf("stopping to gadget: %w", err)
 	}
 	return nil
 }
 
-func (g *gadgetManager) Results(id string) (string, error) {
+func (g *gadgetManager) GetResults(id string) (string, error) {
 	const opPriority = 50000
 	var jsonBuffer []byte
 	myOperator := simple.New("myOperator",
@@ -205,10 +211,15 @@ func (g *gadgetManager) Results(id string) (string, error) {
 		gadgetcontext.WithTimeout(time.Second),
 	)
 
-	if err := g.runtime.RunGadget(gadgetCtx, g.runtime.ParamDescs().ToParams(), map[string]string{}); err != nil {
+	runtime, err := g.getRuntime()
+	if err != nil {
+		return "", fmt.Errorf("getting runtime: %w", err)
+	}
+
+	if err = runtime.RunGadget(gadgetCtx, runtime.ParamDescs().ToParams(), map[string]string{}); err != nil {
 		return "", fmt.Errorf("attaching to gadget: %w", err)
 	}
-	return string(jsonBuffer), nil
+	return truncateResults(string(jsonBuffer), true), nil
 }
 
 func (g *gadgetManager) GetInfo(ctx context.Context, image string) (*api.GadgetInfo, error) {
@@ -217,16 +228,111 @@ func (g *gadgetManager) GetInfo(ctx context.Context, image string) (*api.GadgetI
 		image,
 	)
 
-	info, err := g.runtime.GetGadgetInfo(gadgetCtx, nil, nil)
+	runtime, err := g.getRuntime()
+	if err != nil {
+		return nil, fmt.Errorf("getting runtime: %w", err)
+	}
+
+	info, err := runtime.GetGadgetInfo(gadgetCtx, runtime.ParamDescs().ToParams(), nil)
 	if err != nil {
 		return nil, fmt.Errorf("get gadget info: %w", err)
 	}
 	return info, nil
 }
 
-func (g *gadgetManager) Close() error {
-	if g.runtime != nil {
-		return g.runtime.Close()
+func (g *gadgetManager) ListGadgets(ctx context.Context) ([]*GadgetInstance, error) {
+	rt, err := g.getRuntime()
+	if err != nil {
+		return nil, fmt.Errorf("getting runtime: %w", err)
 	}
-	return nil
+
+	instances, err := rt.GetGadgetInstances(ctx, rt.ParamDescs().ToParams())
+	if err != nil {
+		return nil, fmt.Errorf("listing gadgets: %w", err)
+	}
+
+	var gadgetInstances []*GadgetInstance
+	for _, instance := range instances {
+		inst := gadgetInstanceFromAPI(instance)
+		if inst != nil {
+			gadgetInstances = append(gadgetInstances, inst)
+		}
+	}
+	return gadgetInstances, nil
+}
+
+func (g *gadgetManager) GetVersion() (string, error) {
+	rt, err := g.getRuntime()
+	if err != nil {
+		return "", fmt.Errorf("getting runtime: %w", err)
+	}
+
+	info, err := rt.GetInfo()
+	if err != nil {
+		return "", fmt.Errorf("getting info: %w", err)
+	}
+	return info.ServerVersion, nil
+}
+
+func truncateResults(results string, latest bool) string {
+	if len(results) <= maxResultLen {
+		return fmt.Sprintf("\n<results>%s</results>\n", results)
+	}
+
+	var truncated string
+	if latest {
+		truncated = results[len(results)-maxResultLen:]
+	} else {
+		truncated = results[:maxResultLen] + "…"
+	}
+
+	return fmt.Sprintf("\n<isTruncated>true</isTruncated>\n<results>%s</results>\n", truncated)
+}
+
+func (g *gadgetManager) getRuntime() (*grpcruntime.Runtime, error) {
+	if g.env == "kubernetes" {
+		rt := grpcruntime.New(grpcruntime.WithConnectUsingK8SProxy)
+		if err := rt.Init(nil); err != nil {
+			return nil, fmt.Errorf("initializing gadget runtime: %w", err)
+		}
+
+		restConfig, err := g.k8sConfig.ToRESTConfig()
+		if err != nil {
+			return nil, fmt.Errorf("creating REST config: %w", err)
+		}
+		rt.SetRestConfig(restConfig)
+
+		return rt, nil
+	}
+	return nil, fmt.Errorf("unsupported gadget manager environment: %s", g.env)
+}
+
+func gadgetInstanceFromAPI(instance *api.GadgetInstance) *GadgetInstance {
+	if instance == nil {
+		return nil
+	}
+
+	var createdBy string
+	for _, tag := range instance.Tags {
+		if strings.HasPrefix(tag, "createdBy=") {
+			createdBy = strings.TrimPrefix(tag, "createdBy=")
+			break
+		}
+	}
+
+	var params []string
+	for k, v := range instance.GadgetConfig.ParamValues {
+		if v == "" {
+			continue
+		}
+		params = append(params, fmt.Sprintf("%s=%q", k, v))
+	}
+
+	return &GadgetInstance{
+		ID:          instance.Id,
+		Params:      strings.Join(params, ","),
+		GadgetImage: instance.GadgetConfig.ImageName,
+		CreatedBy:   createdBy,
+		StartedAt:   time.Unix(instance.TimeCreated, 0).Format(time.RFC3339),
+	}
 }

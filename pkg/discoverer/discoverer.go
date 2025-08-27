@@ -52,6 +52,8 @@ func New(source string, opts ...Option) (Discoverer, error) {
 	switch source {
 	case SourceArtifactHub:
 		return NewArtifactHubDiscoverer(cfg), nil
+	case SourceBuiltin:
+		return NewBuiltinDiscoverer(), nil
 	}
 	return nil, fmt.Errorf("%w: %s", ErrUnknownSource, source)
 }
