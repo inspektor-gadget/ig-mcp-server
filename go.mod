@@ -5,7 +5,7 @@ go 1.24.1
 require (
 	github.com/distribution/reference v0.6.0
 	github.com/inspektor-gadget/inspektor-gadget v0.44.1
-	github.com/mark3labs/mcp-go v0.38.0
+	github.com/mark3labs/mcp-go v0.39.1
 	gopkg.in/yaml.v3 v3.0.1
 	helm.sh/helm/v3 v3.18.6
 	k8s.io/apimachinery v0.34.1
