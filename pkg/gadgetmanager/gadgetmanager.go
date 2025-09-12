@@ -68,18 +68,21 @@ type gadgetManager struct {
 	k8sConfig   *genericclioptions.ConfigFlags
 	formatterMu sync.Mutex
 	env         string
+	remoteAddr  string
 }
 
 // NewGadgetManager creates a new GadgetManager instance.
-func NewGadgetManager(env string, k8sConfig *genericclioptions.ConfigFlags) (GadgetManager, error) {
-	if env != "kubernetes" {
+func NewGadgetManager(env string, linuxRemoteAddress string, k8sConfig *genericclioptions.ConfigFlags) (GadgetManager, error) {
+	if env != "kubernetes" && env != "linux" {
 		return nil, fmt.Errorf("unsupported gadget manager environment: %s", env)
 	}
-	// Set the environment to Kubernetes for the gadget runtime
-	environment.Environment = environment.Kubernetes
+	if env == "linux" && linuxRemoteAddress == "" {
+		return nil, fmt.Errorf("linuxRemoteAddress must be set when environment is linux")
+	}
 	return &gadgetManager{
-		k8sConfig: k8sConfig,
-		env:       env,
+		k8sConfig:  k8sConfig,
+		env:        env,
+		remoteAddr: linuxRemoteAddress,
 	}, nil
 }
 
@@ -291,8 +294,9 @@ func truncateResults(results string, latest bool) string {
 
 func (g *gadgetManager) getRuntime() (*grpcruntime.Runtime, error) {
 	if g.env == "kubernetes" {
+		environment.Environment = environment.Kubernetes
 		rt := grpcruntime.New(grpcruntime.WithConnectUsingK8SProxy)
-		if err := rt.Init(nil); err != nil {
+		if err := rt.Init(rt.GlobalParamDescs().ToParams()); err != nil {
 			return nil, fmt.Errorf("initializing gadget runtime: %w", err)
 		}
 
@@ -302,6 +306,19 @@ func (g *gadgetManager) getRuntime() (*grpcruntime.Runtime, error) {
 		}
 		rt.SetRestConfig(restConfig)
 
+		return rt, nil
+	}
+	if g.env == "linux" {
+		environment.Environment = environment.Local
+		rt := grpcruntime.New()
+		gp := rt.GlobalParamDescs().ToParams()
+		err := gp.Set(grpcruntime.ParamRemoteAddress, g.remoteAddr)
+		if err != nil {
+			return nil, fmt.Errorf("setting remote address: %w", err)
+		}
+		if err = rt.Init(gp); err != nil {
+			return nil, fmt.Errorf("initializing gadget runtime: %w", err)
+		}
 		return rt, nil
 	}
 	return nil, fmt.Errorf("unsupported gadget manager environment: %s", g.env)
