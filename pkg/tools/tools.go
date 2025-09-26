@@ -116,6 +116,9 @@ func (r *GadgetToolRegistry) Prepare(ctx context.Context, images []string) error
 	if r.env == "kubernetes" {
 		tools = append(tools, r.getK8sTools(ctx, gadgets)...)
 	}
+	if r.env == "linux" {
+		tools = append(tools, r.getLinuxTools(gadgets)...)
+	}
 
 	// Register all tools in the registry
 	r.RegisterTools(tools...)
@@ -145,5 +148,21 @@ func (r *GadgetToolRegistry) getK8sTools(ctx context.Context, gadgets []discover
 	} else {
 		tools = append(tools, gadgetsephemeral.GetTools(gadgets)...)
 	}
+	return tools
+}
+
+func (r *GadgetToolRegistry) getLinuxTools(gadgets []discoverer.Gadget) []server.ServerTool {
+	var tools []server.ServerTool
+	// Register Gadget lifecycle tool
+	tools = append(tools, lifecyclegadgets.GetTool(r.gadgetMgr))
+
+	// Check if the ig daemon is running by getting its version
+	_, err := r.gadgetMgr.GetVersion()
+	if err != nil {
+		log.Warn("Failed to get ig daemon version, skipping gadget lifecycle tools", "error", err)
+		return tools
+	}
+
+	tools = append(tools, gadgetsdefault.GetTools(context.Background(), r.gadgetMgr, r.env, gadgets)...)
 	return tools
 }

@@ -42,7 +42,8 @@ var (
 	transportHost = flag.String("transport-host", "localhost", "host for the transport")
 	transportPort = flag.String("transport-port", "8080", "port for the transport")
 	// Inspektor Gadget configuration
-	environment                   = flag.String("environment", "kubernetes", "environment to use (currently only 'kubernetes' is supported)")
+	environment                   = flag.String("environment", "kubernetes", "environment to use (currently only 'kubernetes' or 'linux' is supported)")
+	linuxRemoteAddress            = flag.String("linux-remote-address", "unix:///var/run/ig/ig.socket", "Comma-separated list of remote address (gRPC) to connect (unix:///var/run/ig/ig.socket)")
 	gadgetImages                  = flag.String("gadget-images", "", "comma-separated list of gadget images to use (e.g. 'trace_dns:latest,trace_open:latest')")
 	gadgetDiscoverer              = flag.String("gadget-discoverer", "artifacthub", "gadget discoverer to use (artifacthub)")
 	artifactHubDiscovererOfficial = flag.Bool("artifacthub-official", true, "use only official gadgets from Artifact Hub")
@@ -78,8 +79,8 @@ func main() {
 		os.Exit(0)
 	}
 
-	if *environment != "kubernetes" {
-		logFatal("unsupported environment, only 'kubernetes' is supported")
+	if *environment != "kubernetes" && *environment != "linux" {
+		logFatal("invalid environment, must be 'kubernetes' or 'linux'", "environment", *environment)
 	}
 
 	if *logLevel != "" {
@@ -93,7 +94,7 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
-	mgr, err := gadgetmanager.NewGadgetManager(*environment, k8sConfig)
+	mgr, err := gadgetmanager.NewGadgetManager(*environment, *linuxRemoteAddress, k8sConfig)
 	if err != nil {
 		logFatal("failed to create gadget manager", "error", err)
 	}
