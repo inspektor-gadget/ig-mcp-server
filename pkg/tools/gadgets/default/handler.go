@@ -2,7 +2,6 @@ package _default
 
 import (
 	"context"
-	"embed"
 	"fmt"
 	"log/slog"
 	"time"
@@ -13,9 +12,6 @@ import (
 
 	"github.com/inspektor-gadget/ig-mcp-server/pkg/gadgetmanager"
 )
-
-//go:embed templates
-var templates embed.FS
 
 var log = slog.Default().With("component", "gadgets_tool")
 
