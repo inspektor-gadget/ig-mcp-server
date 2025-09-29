@@ -42,6 +42,8 @@ You can use the following commands to quickly configure the Inspektor Gadget MCP
     "run",
     "-i",
     "--rm",
+    "--volume",
+    "ig-mcp-cache:/root/.cache/ig-mcp-server",
     "--mount",
     "type=bind,src=${env:HOME}/.kube/config,dst=/kubeconfig",
     "ghcr.io/inspektor-gadget/ig-mcp-server:latest",
@@ -58,6 +60,8 @@ You can use the following commands to quickly configure the Inspektor Gadget MCP
     "run",
     "-i",
     "--rm",
+    "--volume",
+    "ig-mcp-cache:/root/.cache/ig-mcp-server",
     "--mount",
     "type=bind,src=${env:HOME}/.kube/config,dst=/kubeconfig",
     "ghcr.io/inspektor-gadget/ig-mcp-server:latest",
@@ -128,20 +132,17 @@ After downloading, you can run the following command to add it to your VS Code M
 
 ## Available Tools
 
-### Management Tools
-- **is_inspektor_gadget_deployed**: Checks if Inspektor Gadget is deployed in your cluster
-- **deploy_inspektor_gadget**: Installs Inspektor Gadget in your cluster (skipped if `-read-only` is set)
-- **undeploy_inspektor_gadget**: Removes Inspektor Gadget from your cluster (skipped if `-read-only` is set)
+### Inspektor Gadget Lifecycle
 
-### Lifecycle Tools
+- **ig_deploy**: Manage deployment of Inspektor Gadget on target Kubernetes cluster
 
-- **stop-gadget**: Stops a background running gadget
-- **get-results**: Retrieves results from a background running gadget
-- **wait**: Waits for a gadget to finish running
+### Gadget Lifecycle
+
+- **ig_gadgets**: Manage the lifecycle of running gadgets (stop/list/get-results)
 
 ### Dynamic Tools
 
-Each gadget is registered as its own MCP tool (e.g., `trace_dns`, `trace_tcp`, etc.) and supports running gadgets in foreground mode, which is useful for debugging/development and also in background mode for observability.
+Each gadget is registered as its own MCP tool (e.g., `gadget_trace_dns`, `gadget_trace_tcp`, etc.) and supports running gadgets in foreground mode, which is useful for debugging/development and also in background mode for observability.
 
 Also, You can control which gadgets are available by configuring the MCP server with the `-gadget-discoverer` or `-gadget-images` options, allowing you to limit the tools to only those you need.
 

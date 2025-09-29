@@ -40,7 +40,7 @@ func GetTools(ctx context.Context, mgr gadgetmanager.GadgetManager, env string, 
 		log.Debug("No valid cache found, proceeding without cache", "error", err)
 	}
 	if len(cachedInfos) == 0 {
-		log.Info("Fetching gadget information without cache. Initial load may take several seconds...")
+		log.Info("Fetching gadget information without cache. Initial load may take several seconds.")
 	}
 
 	// prepare tools
