@@ -9,6 +9,7 @@ import (
 	"text/template"
 	"time"
 
+	"github.com/distribution/reference"
 	"github.com/inspektor-gadget/inspektor-gadget/pkg/gadget-service/api"
 	metadatav1 "github.com/inspektor-gadget/inspektor-gadget/pkg/metadata/v1"
 	"github.com/mark3labs/mcp-go/mcp"
@@ -47,10 +48,12 @@ func GetTools(ctx context.Context, mgr gadgetmanager.GadgetManager, env string, 
 	gadgetInfos := fetchGadgetInfosConcurrently(ctx, mgr, gadgets, cachedInfos)
 	tools := buildToolsFromGadgetInfos(env, mgr, gadgetInfos)
 
-	// save cache
-	err = cache.SaveCache(version, env, gadgetInfos)
-	if err != nil {
-		log.Warn("Could not save cache", "error", err)
+	// save cache if needed
+	if len(cachedInfos) != len(gadgetInfos) {
+		err = cache.SaveCache(version, env, gadgetInfos)
+		if err != nil {
+			log.Warn("Could not save cache", "error", err)
+		}
 	}
 
 	return tools
@@ -64,9 +67,15 @@ func fetchGadgetInfosConcurrently(ctx context.Context, mgr gadgetmanager.GadgetM
 
 	// Start goroutines to fetch gadget info
 	for _, gadget := range gadgets {
+		select {
+		case <-ctx.Done():
+			log.Warn("Context cancelled, stopping gadget info fetch")
+			return nil
+		default:
+		}
 		wg.Add(1)
 		sem <- struct{}{}
-		go fetchSingleGadgetInfo(ctx, mgr, gadget.Image, cachedInfos, &wg, sem, resultsChan)
+		go fetchSingleGadgetInfo(ctx, mgr, versionedImage(mgr, gadget.Image), cachedInfos, &wg, sem, resultsChan)
 	}
 
 	// Close results channel when all goroutines complete
@@ -86,6 +95,18 @@ func fetchGadgetInfosConcurrently(ctx context.Context, mgr gadgetmanager.GadgetM
 	}
 
 	return gadgetInfos
+}
+
+func versionedImage(mgr gadgetmanager.GadgetManager, img string) string {
+	version, err := mgr.GetVersion()
+	if err != nil {
+		return img
+	}
+	named, err := reference.ParseNamed(img)
+	if err != nil {
+		return img
+	}
+	return named.Name() + ":v" + version
 }
 
 func fetchSingleGadgetInfo(ctx context.Context, mgr gadgetmanager.GadgetManager, image string, cachedInfos map[string]*api.GadgetInfo, wg *sync.WaitGroup, sem chan struct{}, resultsChan chan gadgetInfoResult) {
