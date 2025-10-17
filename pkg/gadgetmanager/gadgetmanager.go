@@ -23,6 +23,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/gopacket/gopacket"
+	"github.com/gopacket/gopacket/layers"
 	"github.com/inspektor-gadget/inspektor-gadget/pkg/environment"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 
@@ -87,39 +89,15 @@ func NewGadgetManager(env string, linuxRemoteAddress string, k8sConfig *genericc
 }
 
 func (g *gadgetManager) Run(image string, params map[string]string, timeout time.Duration) (string, error) {
-	const opPriority = 50000
-	var jsonBuffer []byte
-	myOperator := simple.New("myOperator",
-		simple.OnInit(func(gadgetCtx operators.GadgetContext) error {
-			for _, d := range gadgetCtx.GetDataSources() {
-				jsonFormatter, _ := igjson.New(d,
-					igjson.WithShowAll(true),
-				)
-
-				// skip data sources that have the annotation "cli.default-output-mode"
-				// set to "none"Add commentMore actions
-				if m, ok := d.Annotations()["cli.default-output-mode"]; ok && m == "none" {
-					continue
-				}
-
-				d.Subscribe(func(source datasource.DataSource, data datasource.Data) error {
-					g.formatterMu.Lock()
-					defer g.formatterMu.Unlock()
-					jsonData := jsonFormatter.Marshal(data)
-					jsonBuffer = append(jsonBuffer, jsonData...)
-					jsonBuffer = append(jsonBuffer, '\n')
-					return nil
-				}, opPriority)
-			}
-			return nil
-		}),
-	)
-
+	var res strings.Builder
 	gadgetCtx := gadgetcontext.New(
 		context.Background(),
 		image,
 		gadgetcontext.WithDataOperators(
-			myOperator,
+			g.outputOperator(func(buf []byte) {
+				res.Write(buf)
+				res.WriteByte('\n')
+			}),
 		),
 		gadgetcontext.WithTimeout(timeout),
 	)
@@ -132,7 +110,7 @@ func (g *gadgetManager) Run(image string, params map[string]string, timeout time
 	if err = runtime.RunGadget(gadgetCtx, runtime.ParamDescs().ToParams(), params); err != nil {
 		return "", fmt.Errorf("running gadget: %w", err)
 	}
-	return truncateResults(string(jsonBuffer), false), nil
+	return truncateResults(res.String(), false), nil
 }
 
 func (g *gadgetManager) RunDetached(image string, params map[string]string) (string, error) {
@@ -172,34 +150,7 @@ func (g *gadgetManager) Stop(id string) error {
 }
 
 func (g *gadgetManager) GetResults(id string) (string, error) {
-	const opPriority = 50000
-	var jsonBuffer []byte
-	myOperator := simple.New("myOperator",
-		simple.OnInit(func(gadgetCtx operators.GadgetContext) error {
-			for _, d := range gadgetCtx.GetDataSources() {
-				jsonFormatter, _ := igjson.New(d,
-					igjson.WithShowAll(true),
-				)
-
-				// skip data sources that have the annotation "cli.default-output-mode"
-				// set to "none"Add commentMore actions
-				if m, ok := d.Annotations()["cli.default-output-mode"]; ok && m == "none" {
-					continue
-				}
-
-				d.Subscribe(func(source datasource.DataSource, data datasource.Data) error {
-					g.formatterMu.Lock()
-					defer g.formatterMu.Unlock()
-					jsonData := jsonFormatter.Marshal(data)
-					jsonBuffer = append(jsonBuffer, jsonData...)
-					jsonBuffer = append(jsonBuffer, '\n')
-					return nil
-				}, opPriority)
-			}
-			return nil
-		}),
-	)
-
+	var res strings.Builder
 	to, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
 
@@ -207,7 +158,10 @@ func (g *gadgetManager) GetResults(id string) (string, error) {
 		to,
 		id,
 		gadgetcontext.WithDataOperators(
-			myOperator,
+			g.outputOperator(func(buf []byte) {
+				res.Write(buf)
+				res.WriteByte('\n')
+			}),
 		),
 		gadgetcontext.WithID(id),
 		gadgetcontext.WithUseInstance(true),
@@ -222,7 +176,7 @@ func (g *gadgetManager) GetResults(id string) (string, error) {
 	if err = runtime.RunGadget(gadgetCtx, runtime.ParamDescs().ToParams(), map[string]string{}); err != nil {
 		return "", fmt.Errorf("attaching to gadget: %w", err)
 	}
-	return truncateResults(string(jsonBuffer), true), nil
+	return truncateResults(res.String(), true), nil
 }
 
 func (g *gadgetManager) GetInfo(ctx context.Context, image string) (*api.GadgetInfo, error) {
@@ -322,6 +276,56 @@ func (g *gadgetManager) getRuntime() (*grpcruntime.Runtime, error) {
 		return rt, nil
 	}
 	return nil, fmt.Errorf("unsupported gadget manager environment: %s", g.env)
+}
+
+func (g *gadgetManager) outputOperator(cb func(buf []byte)) operators.DataOperator {
+	const opPriority = 50000
+	return simple.New("outputOperator",
+		simple.OnInit(func(gadgetCtx operators.GadgetContext) error {
+			for _, d := range gadgetCtx.GetDataSources() {
+				// skip data sources that have the annotation "cli.default-output-mode"
+				if m, ok := d.Annotations()["cli.default-output-mode"]; ok && m == "none" {
+					continue
+				}
+
+				// handle adding a raw string field for certain content types
+				restField := d.Annotations()["ebpf.rest.name"]
+				var restAcc datasource.FieldAccessor
+				var restStrAcc datasource.FieldAccessor
+				var err error
+				if restField != "" {
+					restAcc = d.GetField(restField)
+					ct, ok := restAcc.Annotations()["content-type"]
+					if ok && ct == "application/x-raw-packet" {
+						restStrAcc, err = d.AddField(restField+"_string", api.Kind_String)
+						if err != nil {
+							return fmt.Errorf("adding raw string field accessor: %w", err)
+						}
+					}
+				}
+
+				jsonFormatter, _ := igjson.New(d,
+					igjson.WithShowAll(true),
+				)
+
+				d.Subscribe(func(source datasource.DataSource, data datasource.Data) error {
+					g.formatterMu.Lock()
+					defer g.formatterMu.Unlock()
+					if restAcc != nil && restStrAcc != nil {
+						pktStr := gopacket.NewPacket(restAcc.Get(data), layers.LinkTypeEthernet, gopacket.Default).String()
+						err = restStrAcc.Set(data, []byte(pktStr))
+						if err != nil {
+							return fmt.Errorf("setting raw string field: %w", err)
+						}
+					}
+					jsonData := jsonFormatter.Marshal(data)
+					cb(jsonData)
+					return nil
+				}, opPriority)
+			}
+			return nil
+		}),
+	)
 }
 
 func gadgetInstanceFromAPI(instance *api.GadgetInstance) *GadgetInstance {
