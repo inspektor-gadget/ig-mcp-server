@@ -4,6 +4,7 @@ go 1.24.1
 
 require (
 	github.com/distribution/reference v0.6.0
+	github.com/gopacket/gopacket v1.4.0
 	github.com/inspektor-gadget/inspektor-gadget v0.45.0
 	github.com/mark3labs/mcp-go v0.41.1
 	gopkg.in/yaml.v3 v3.0.1
@@ -171,6 +172,3 @@ require (
 	sigs.k8s.io/structured-merge-diff/v6 v6.3.0 // indirect
 	sigs.k8s.io/yaml v1.6.0 // indirect
 )
-
-// Override cilium/ebpf dependency with inspektor-gadget/ebpf for compatibility with inspektor-gadget/inspektor-gadget
-replace github.com/cilium/ebpf => github.com/inspektor-gadget/ebpf v0.0.0-20250625205447-f72d1b709b03
