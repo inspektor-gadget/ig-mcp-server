@@ -132,7 +132,7 @@ jobs:
             -czf ${target}.tar.gz \
             $binary_name
       - name: Add ig-mcp-server-${{ matrix.os }}-${{ matrix.arch }}.tar.gz as artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: ig-mcp-server-${{ matrix.os }}-${{ matrix.arch }}-tar-gz
           path: ig-mcp-server-${{ matrix.os }}-${{ matrix.arch }}.tar.gz
