@@ -4,7 +4,7 @@ go 1.24.1
 
 require (
 	github.com/distribution/reference v0.6.0
-	github.com/gopacket/gopacket v1.4.0
+	github.com/gopacket/gopacket v1.5.0
 	github.com/inspektor-gadget/inspektor-gadget v0.46.0
 	github.com/mark3labs/mcp-go v0.43.0
 	gopkg.in/yaml.v3 v3.0.1
