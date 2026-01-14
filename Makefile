@@ -4,7 +4,7 @@ GOHOSTARCH ?= $(shell go env GOHOSTARCH)
 TAG := `git describe --tags --always`
 VERSION :=
 
-LINTER_VERSION ?= v2.1.6
+LINTER_VERSION ?= v2.6.0
 
 # Adds a '-dirty' suffix to version string if there are uncommitted changes
 changes := $(shell git status --porcelain)

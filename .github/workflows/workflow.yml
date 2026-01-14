@@ -1,7 +1,7 @@
 name: Inspektor Gadget MCP Server CI
 env:
   REGISTRY: 'ghcr.io'
-  GO_VERSION: '1.24'
+  GO_VERSION: '1.25'
 on:
   push:
     branches:
@@ -153,7 +153,7 @@ jobs:
         uses: golangci/golangci-lint-action@v9
         with:
           # This version number must be kept in sync with Makefile lint one.
-          version: v2.1.6
+          version: v2.6.0
           working-directory: /home/runner/work/ig-mcp-server/ig-mcp-server
 
   docker-build:
