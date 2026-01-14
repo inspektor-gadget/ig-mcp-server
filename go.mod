@@ -1,6 +1,6 @@
 module github.com/inspektor-gadget/ig-mcp-server
 
-go 1.24.1
+go 1.25.0
 
 require (
 	github.com/distribution/reference v0.6.0
