@@ -8,7 +8,7 @@ require (
 	github.com/inspektor-gadget/inspektor-gadget v0.48.0
 	github.com/mark3labs/mcp-go v0.43.0
 	gopkg.in/yaml.v3 v3.0.1
-	helm.sh/helm/v3 v3.19.4
+	helm.sh/helm/v3 v3.19.5
 	k8s.io/apimachinery v0.35.0
 	k8s.io/cli-runtime v0.35.0
 	k8s.io/client-go v0.35.0
