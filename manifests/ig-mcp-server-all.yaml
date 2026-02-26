@@ -1,0 +1,116 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: ig-mcp-server-sa
+  namespace: gadget
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: ig-mcp-server-cluster-role
+rules:
+  - apiGroups: [ "" ]
+    resources: [ "pods"]
+    verbs: [ "list" ]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: ig-mcp-server-cluster-binding
+subjects:
+  - kind: ServiceAccount
+    name: ig-mcp-server-sa
+    namespace: gadget
+roleRef:
+  kind: ClusterRole
+  name: ig-mcp-server-cluster-role
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: ig-mcp-server-role
+  namespace: gadget
+rules:
+  - apiGroups: [ "" ]
+    resources: [ "pods/portforward" ]
+    verbs: [ "create" ]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: ig-mcp-server-binding
+  namespace: gadget
+subjects:
+  - kind: ServiceAccount
+    name: ig-mcp-server-sa
+    namespace: gadget
+roleRef:
+  kind: Role
+  name: ig-mcp-server-role
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ig-mcp-server
+  namespace: gadget
+  labels:
+    app: ig-mcp-server
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8080
+      targetPort: 8080
+      protocol: TCP
+      name: http
+  selector:
+    app: ig-mcp-server
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ig-mcp-server
+  namespace: gadget
+  labels:
+    app: ig-mcp-server
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ig-mcp-server
+  template:
+    metadata:
+      labels:
+        app: ig-mcp-server
+    spec:
+      serviceAccountName: ig-mcp-server-sa
+      containers:
+        - name: ig-mcp-server
+          image: ghcr.io/inspektor-gadget/ig-mcp-server:latest
+          imagePullPolicy: Always
+          args:
+            - "-gadget-discoverer=artifacthub"
+            - "-transport=streamable-http"
+            - "-transport-host=0.0.0.0"
+            - "-transport-port=8080"
+          ports:
+            - containerPort: 8080
+              name: http
+              protocol: TCP
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            runAsNonRoot: true
+            runAsUser: 65532
+            capabilities:
+              drop:
+                - ALL
+            seccompProfile:
+              type: RuntimeDefault

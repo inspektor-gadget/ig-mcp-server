@@ -30,6 +30,38 @@ https://github.com/user-attachments/assets/86367982-c0aa-455c-ac9e-ca43348899df
 
 You can use the following commands to quickly configure the Inspektor Gadget MCP server using either Docker or a binary in your VS Code settings.
 
+## Kubernetes
+
+To use IG MCP Server you will need to start by deploying Inspektor Gadget using one of the following commands:
+
+```bash
+IG_VERSION=$(curl -s https://api.github.com/repos/inspektor-gadget/inspektor-gadget/releases/latest | jq -r '.tag_name' | sed 's/^v//')
+helm install gadget --namespace=gadget --create-namespace oci://ghcr.io/inspektor-gadget/inspektor-gadget/charts/gadget --version=$IG_VERSION
+```
+
+or
+
+```bash
+IG_VERSION=$(curl -s https://api.github.com/repos/inspektor-gadget/inspektor-gadget/releases/latest | jq -r '.tag_name')
+kubectl apply -f https://github.com/inspektor-gadget/inspektor-gadget/releases/download/${IG_VERSION}/inspektor-gadget-${IG_VERSION}.yaml
+```
+
+Then you can deploy the IG MCP server to a Kubernetes cluster using the following command:
+
+```bash
+kubectl apply -f https://raw.githubusercontent.com/inspektor-gadget/ig-mcp-server/main/manifests/ig-mcp-server-all.yaml
+```
+
+Then use the following command to port-forward the server to your local machine:
+
+```bash
+kubectl port-forward svc/ig-mcp-server 8080:8080 -n gadget
+```
+
+Then you can use `http://localhost:8080/mcp` as a remote MCP url (transport: http) in your agent.
+
+> **Security Note**: The IG MCP server does not currently implement built-in authentication. For production deployments, it is strongly recommended to place the server behind a reverse proxy (such as nginx, Traefik, or an API gateway) with proper authentication and TLS termination. Additionally, ensure that the service is not directly exposed to the internet and use network policies to restrict access to trusted sources only.
+
 ### Docker
 
 <summary>
