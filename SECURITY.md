@@ -9,7 +9,40 @@ You can limit the permissions of the Inspektor Gadget MCP Server by creating a d
 We start by creating a service account and role binding assuming you have already [deployed Inspektor Gadget](https://inspektor-gadget.io/docs/latest/reference/install-kubernetes) in `gadget` namespace. This service account will have limited permissions to interact with the Kubernetes API.
 
 ```bash
-kubectl apply -f https://raw.githubusercontent.com/inspektor-gadget/ig-mcp-server/main/manifests/rbac-read-only.yaml
+kubectl apply -f - <<EOF
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: ig-mcp-server-sa
+  namespace: gadget
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  namespace: gadget
+  name: ig-mcp-server-role
+rules:
+  - apiGroups: [ "" ]
+    resources: [ "pods/portforward" ]
+    verbs: [ "create" ]
+  - apiGroups: [ "" ]
+    resources: [ "pods"]
+    verbs: [ "list" ]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: ig-mcp-server-binding
+  namespace: gadget
+subjects:
+  - kind: ServiceAccount
+    name: ig-mcp-server-sa
+    namespace: gadget
+roleRef:
+  kind: Role
+  name: ig-mcp-server-role
+  apiGroup: rbac.authorization.k8s.io
+EOF
 ```
 
 ### 2. Extract Token
