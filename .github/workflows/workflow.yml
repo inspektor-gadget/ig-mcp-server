@@ -77,7 +77,7 @@ jobs:
       - name: Build and Push image
         if: github.event_name != 'pull_request'
         id: push
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           platforms: linux/amd64,linux/arm64
           context: .
@@ -167,7 +167,7 @@ jobs:
         uses: docker/setup-buildx-action@v3
 
       - name: Build and Test Docker Image
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .
           tags: mcp/inspektor-gadget
