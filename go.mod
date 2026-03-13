@@ -5,7 +5,7 @@ go 1.25.0
 require (
 	github.com/distribution/reference v0.6.0
 	github.com/gopacket/gopacket v1.5.0
-	github.com/inspektor-gadget/inspektor-gadget v0.50.0
+	github.com/inspektor-gadget/inspektor-gadget v0.50.1
 	github.com/mark3labs/mcp-go v0.44.1
 	gopkg.in/yaml.v3 v3.0.1
 	helm.sh/helm/v3 v3.20.0
