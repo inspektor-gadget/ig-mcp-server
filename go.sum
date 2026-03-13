@@ -218,8 +218,8 @@ github.com/in-toto/attestation v1.1.2 h1:MBFn6lsMq6dptQZJBhalXTcWMb/aJy3V+GX3VYj
 github.com/in-toto/attestation v1.1.2/go.mod h1:gYFddHMZj3DiQ0b62ltNi1Vj5rC879bTmBbrv9CRHpM=
 github.com/inconshreveable/mousetrap v1.1.0 h1:wN+x4NVGpMsO7ErUn/mUI3vEoE6Jt13X2s0bqwp9tc8=
 github.com/inconshreveable/mousetrap v1.1.0/go.mod h1:vpF70FUmC8bwa3OWnCshd2FqLfsEA9PFc4w1p2J65bw=
-github.com/inspektor-gadget/inspektor-gadget v0.50.0 h1:WrXfqgv8MeHXQAuaK5I5FIvujeCRBDKnlhq6LFTujSE=
-github.com/inspektor-gadget/inspektor-gadget v0.50.0/go.mod h1:ZMgePPPX9AEG36jNhQxSAzmyomaMEDf3kaKwszLObgY=
+github.com/inspektor-gadget/inspektor-gadget v0.50.1 h1:ixw9Mdn+YDoJbyrMXbQ4VuP3+egT7vR1AQlRxW8PdOA=
+github.com/inspektor-gadget/inspektor-gadget v0.50.1/go.mod h1:ZMgePPPX9AEG36jNhQxSAzmyomaMEDf3kaKwszLObgY=
 github.com/invopop/jsonschema v0.13.0 h1:KvpoAJWEjR3uD9Kbm2HWJmqsEaHt8lBUpd0qHcIi21E=
 github.com/invopop/jsonschema v0.13.0/go.mod h1:ffZ5Km5SWWRAIN6wbDXItl95euhFz2uON45H2qjYt+0=
 github.com/jcmturner/aescts/v2 v2.0.0 h1:9YKLH6ey7H4eDBXW8khjYslgyqG2xZikXP0EQFKrle8=
