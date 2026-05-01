@@ -1,12 +1,12 @@
 module github.com/inspektor-gadget/ig-mcp-server
 
-go 1.25.0
+go 1.25.5
 
 require (
 	github.com/distribution/reference v0.6.0
 	github.com/gopacket/gopacket v1.5.0
 	github.com/inspektor-gadget/inspektor-gadget v0.50.0
-	github.com/mark3labs/mcp-go v0.48.0
+	github.com/mark3labs/mcp-go v0.50.0
 	gopkg.in/yaml.v3 v3.0.1
 	helm.sh/helm/v3 v3.20.2
 	k8s.io/apimachinery v0.35.2
