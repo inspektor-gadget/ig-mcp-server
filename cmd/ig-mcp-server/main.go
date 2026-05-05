@@ -44,6 +44,7 @@ var (
 	// Inspektor Gadget configuration
 	environment                   = flag.String("environment", "kubernetes", "environment to use (currently only 'kubernetes' or 'linux' is supported)")
 	linuxRemoteAddress            = flag.String("linux-remote-address", "unix:///var/run/ig/ig.socket", "Comma-separated list of remote address (gRPC) to connect (unix:///var/run/ig/ig.socket)")
+	gadgetNamespace               = flag.String("namespace", "", "namespace where Inspektor Gadget is deployed (default: gadget)")
 	gadgetImages                  = flag.String("gadget-images", "", "comma-separated list of gadget images to use (e.g. 'trace_dns:latest,trace_open:latest')")
 	gadgetDiscoverer              = flag.String("gadget-discoverer", "artifacthub", "gadget discoverer to use (artifacthub)")
 	artifactHubDiscovererOfficial = flag.Bool("artifacthub-official", true, "use only official gadgets from Artifact Hub")
@@ -94,7 +95,7 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
-	mgr, err := gadgetmanager.NewGadgetManager(*environment, *linuxRemoteAddress, k8sConfig)
+	mgr, err := gadgetmanager.NewGadgetManager(*environment, *linuxRemoteAddress, k8sConfig, *gadgetNamespace)
 	if err != nil {
 		logFatal("failed to create gadget manager", "error", err)
 	}
