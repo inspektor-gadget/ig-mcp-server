@@ -67,14 +67,15 @@ type GadgetInstance struct {
 }
 
 type gadgetManager struct {
-	k8sConfig   *genericclioptions.ConfigFlags
-	formatterMu sync.Mutex
-	env         string
-	remoteAddr  string
+	k8sConfig        *genericclioptions.ConfigFlags
+	formatterMu      sync.Mutex
+	env              string
+	remoteAddr       string
+	gadgetNamespace  string
 }
 
 // NewGadgetManager creates a new GadgetManager instance.
-func NewGadgetManager(env string, linuxRemoteAddress string, k8sConfig *genericclioptions.ConfigFlags) (GadgetManager, error) {
+func NewGadgetManager(env string, linuxRemoteAddress string, k8sConfig *genericclioptions.ConfigFlags, gadgetNamespace string) (GadgetManager, error) {
 	if env != "kubernetes" && env != "linux" {
 		return nil, fmt.Errorf("unsupported gadget manager environment: %s", env)
 	}
@@ -82,9 +83,10 @@ func NewGadgetManager(env string, linuxRemoteAddress string, k8sConfig *genericc
 		return nil, fmt.Errorf("linuxRemoteAddress must be set when environment is linux")
 	}
 	return &gadgetManager{
-		k8sConfig:  k8sConfig,
-		env:        env,
-		remoteAddr: linuxRemoteAddress,
+		k8sConfig:       k8sConfig,
+		env:             env,
+		remoteAddr:      linuxRemoteAddress,
+		gadgetNamespace: gadgetNamespace,
 	}, nil
 }
 
@@ -250,7 +252,13 @@ func (g *gadgetManager) getRuntime() (*grpcruntime.Runtime, error) {
 	if g.env == "kubernetes" {
 		environment.Environment = environment.Kubernetes
 		rt := grpcruntime.New(grpcruntime.WithConnectUsingK8SProxy)
-		if err := rt.Init(rt.GlobalParamDescs().ToParams()); err != nil {
+		gp := rt.GlobalParamDescs().ToParams()
+		if g.gadgetNamespace != "" {
+			if err := gp.Set(grpcruntime.ParamGadgetNamespace, g.gadgetNamespace); err != nil {
+				return nil, fmt.Errorf("setting gadget namespace: %w", err)
+			}
+		}
+		if err := rt.Init(gp); err != nil {
 			return nil, fmt.Errorf("initializing gadget runtime: %w", err)
 		}
 
