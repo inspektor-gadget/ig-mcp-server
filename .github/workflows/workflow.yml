@@ -197,7 +197,7 @@ jobs:
           name: Release ${{ github.ref_name }}
           draft: true
       - name: Get all artifacts
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           pattern: ig-mcp-server-*-tar-gz
       - name: Upload ig-mcp-server binaries as release assets
