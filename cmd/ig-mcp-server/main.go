@@ -30,6 +30,7 @@ import (
 	"github.com/inspektor-gadget/ig-mcp-server/pkg/gadgetmanager"
 	"github.com/inspektor-gadget/ig-mcp-server/pkg/server"
 	"github.com/inspektor-gadget/ig-mcp-server/pkg/tools"
+	lifecycledeploy "github.com/inspektor-gadget/ig-mcp-server/pkg/tools/lifecycle/deploy"
 )
 
 // This variable is used by the "version" command and is set during build
@@ -44,6 +45,7 @@ var (
 	// Inspektor Gadget configuration
 	environment                   = flag.String("environment", "kubernetes", "environment to use (currently only 'kubernetes' or 'linux' is supported)")
 	linuxRemoteAddress            = flag.String("linux-remote-address", "unix:///var/run/ig/ig.socket", "Comma-separated list of remote address (gRPC) to connect (unix:///var/run/ig/ig.socket)")
+	gadgetNamespace               = flag.String("namespace", "", "namespace where Inspektor Gadget is deployed (auto-detected, falls back to 'gadget')")
 	gadgetImages                  = flag.String("gadget-images", "", "comma-separated list of gadget images to use (e.g. 'trace_dns:latest,trace_open:latest')")
 	gadgetDiscoverer              = flag.String("gadget-discoverer", "artifacthub", "gadget discoverer to use (artifacthub)")
 	artifactHubDiscovererOfficial = flag.Bool("artifacthub-official", true, "use only official gadgets from Artifact Hub")
@@ -94,7 +96,18 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
-	mgr, err := gadgetmanager.NewGadgetManager(*environment, *linuxRemoteAddress, k8sConfig)
+	namespace := *gadgetNamespace
+	if *environment == "kubernetes" && namespace == "" {
+		deployed, discovered, err := lifecycledeploy.IsInspektorGadgetDeployed(ctx)
+		if err != nil {
+			log.Warn("Failed to auto-discover gadget namespace, falling back to default", "error", err)
+		} else if deployed {
+			log.Info("Auto-discovered gadget namespace", "namespace", discovered)
+			namespace = discovered
+		}
+	}
+
+	mgr, err := gadgetmanager.NewGadgetManager(*environment, *linuxRemoteAddress, k8sConfig, namespace)
 	if err != nil {
 		logFatal("failed to create gadget manager", "error", err)
 	}
